@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from typing import Generator, Iterable
+
 import argparse
 import os
 import pathlib
@@ -26,17 +28,38 @@ def main():
     )
     args = parser.parse_args()
 
-    mtimes_raw = collect_file_stats(files=[
+    mtimes_raw = collect_file_stats(files=(
         file
         for folder in args.folders
         for file in folder.glob("*.CR3")
-    ])
-    mtimes_edit = collect_file_stats(files=[
+    ))
+    mtimes_edit = collect_file_stats(files=(
         file
         for folder in args.folders
         for file in folder.glob("converted*/*.jpg")
-    ])
+    ))
 
+    plot_time_between_photos(
+        mtimes_raw=mtimes_raw,
+        mtimes_plot=mtimes_edit,
+        out_filename=args.plot,
+    )
+
+
+def collect_file_stats(
+    files: Iterable[pathlib.Path],
+) -> Generator[float]:
+    """Return the file modification times in unix seconds."""
+    for file in files:
+        stat = os.stat(file)
+        yield stat.st_mtime
+
+
+def plot_time_between_photos(
+    mtimes_raw: Iterable[float],
+    mtimes_edit: Iterable[float],
+    out_filename: pathlib.Path
+):
     # Compute delta times (first item will be NaN):
     dt_raw = pd.Series(sorted(mtimes_raw)).diff()
     dt_edit = pd.Series(sorted(mtimes_edit)).diff()
@@ -51,16 +74,7 @@ def main():
     ax.set_xlabel("Time between photos in seconds")
     sns.move_legend(ax, "lower right")
     fig.tight_layout()
-    fig.savefig(args.plot)
-
-
-def collect_file_stats(
-    files: list[pathlib.Path],
-) -> list[float]:
-    """Return the file modification times in unix seconds."""
-    for file in files:
-        stat = os.stat(file)
-        yield stat.st_mtime
+    fig.savefig(out_filename)
 
 
 if __name__ == '__main__':
