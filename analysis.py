@@ -3,6 +3,7 @@
 from typing import Generator, Iterable
 
 import argparse
+import datetime
 import os
 import pathlib
 
@@ -103,7 +104,7 @@ def plot_time_between_photos(
     dt_edit = pd.Series(mtimes_edit).diff()
     df = pd.DataFrame({"Photos shot": dt_raw, "Photos edited": dt_edit})
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(4, 3))
     sns.ecdfplot(
         data=df,
         ax=ax,
@@ -127,21 +128,27 @@ def plot_sessions(
         "Editing sessions": sessions_edit_minutes,
     })
 
-    print(
-        f"{len(sessions_raw_minutes)=}, "
-        f"{len(sessions_edit_minutes)=}, "
-        f"{sum(sessions_raw_minutes)=}, "
-        f"{sum(sessions_edit_minutes)=}"
-    )
-
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     sns.ecdfplot(
         data=df,
         ax=ax,
     )
     # ax.set_xlim(left=0, right=
     ax.set_xlabel("Session duration in minutes")
+    fig.text(
+        .05,
+        .05,
+        f"{len(sessions_raw_minutes)} photo shoot sessions, total: "
+        f"{datetime.timedelta(minutes=sum(sessions_raw_minutes))}\n"
+        f"{len(sessions_edit_minutes)} editing sessions, total: "
+        f"{datetime.timedelta(minutes=sum(sessions_edit_minutes))}",
+        ha="left",
+        va="bottom",
+        fontsize=10,
+        transform=fig.transFigure,
+    )
     fig.tight_layout()
+    fig.subplots_adjust(bottom=.30)
     fig.savefig(out_filename)
 
 
