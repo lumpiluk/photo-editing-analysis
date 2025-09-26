@@ -111,7 +111,6 @@ def main():
                 out_filename=args.focal_lengths_plot,
             )
         if args.exposure_times_plot:
-            # TODO: or will it return strings here?
             plot_metadata(
                 metadata_raw=metadata_raw,
                 metadata_edited=metadata_edited,
@@ -124,7 +123,7 @@ def main():
                 metadata_raw=metadata_raw,
                 metadata_edited=metadata_edited,
                 tag="EXIF:FNumber",
-                xlabel="Aperture as 1/x",
+                xlabel="Aperture (F-number)",
                 out_filename=args.apertures_plot,
             )
         if args.isos_plot:
