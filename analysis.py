@@ -3,10 +3,10 @@
 from typing import Generator, Iterable
 
 import argparse
-import datetime
 import os
 import pathlib
 
+import exiftool
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -35,18 +35,41 @@ def main():
         required=True,
         help="File name of the plot of session durations.",
     )
+    parser.add_argument(
+        "--focal-lengths-plot",
+        type=pathlib.Path,
+        required=False,
+    )
+    parser.add_argument(
+        "--exposure-times-plot",
+        type=pathlib.Path,
+        required=False,
+    )
+    parser.add_argument(
+        "--apertures-plot",
+        type=pathlib.Path,
+        required=False,
+    )
+    parser.add_argument(
+        "--isos-plot",
+        type=pathlib.Path,
+        required=False,
+    )
     args = parser.parse_args()
 
-    mtimes_raw = sorted(collect_file_stats(files=(
+    raw_files = [
         file
         for folder in args.folders
         for file in folder.glob("*.CR3")
-    )))
-    mtimes_edit = sorted(collect_file_stats(files=(
+    ]
+    edited_files = [
         file
         for folder in args.folders
         for file in folder.glob("converted*/*.jpg")
-    )))
+    ]
+
+    mtimes_raw = sorted(collect_file_stats(files=raw_files))
+    mtimes_edit = sorted(collect_file_stats(files=edited_files))
 
     plot_time_between_photos(
         mtimes_raw=mtimes_raw,
@@ -69,6 +92,49 @@ def main():
         out_filename=args.sessions_plot,
     )
 
+    if (
+            args.focal_lengths_plot
+            or args.exposure_times_plot
+            or args.apertures_plot
+            or args.isos_plot
+    ):
+        metadata_raw = get_metadata(raw_files)
+        metadata_edited = get_metadata(edited_files)
+        # print(metadata_raw[0].keys())
+
+        if args.focal_lengths_plot:
+            plot_metadata(
+                metadata_raw=metadata_raw,
+                metadata_edited=metadata_edited,
+                tag="EXIF:FocalLength",
+                xlabel="Focal length in mm",
+                out_filename=args.focal_lengths_plot,
+            )
+        if args.exposure_times_plot:
+            # TODO: or will it return strings here?
+            plot_metadata(
+                metadata_raw=metadata_raw,
+                metadata_edited=metadata_edited,
+                tag="EXIF:ExposureTime",
+                xlabel="Exposure time in seconds",
+                out_filename=args.exposure_times_plot,
+            )
+        if args.apertures_plot:
+            plot_metadata(
+                metadata_raw=metadata_raw,
+                metadata_edited=metadata_edited,
+                tag="EXIF:FNumber",
+                xlabel="Aperture as 1/x",
+                out_filename=args.apertures_plot,
+            )
+        if args.isos_plot:
+            plot_metadata(
+                metadata_raw=metadata_raw,
+                metadata_edited=metadata_edited,
+                tag="EXIF:ISO",
+                xlabel="ISO",
+                out_filename=args.isos_plot,
+            )
 
 def collect_file_stats(
     files: Iterable[pathlib.Path],
@@ -138,10 +204,12 @@ def plot_sessions(
     fig.text(
         .05,
         .05,
-        f"{len(sessions_raw_minutes)} photo shoot sessions, total: "
-        f"{datetime.timedelta(minutes=sum(sessions_raw_minutes))}\n"
-        f"{len(sessions_edit_minutes)} editing sessions, total: "
-        f"{datetime.timedelta(minutes=sum(sessions_edit_minutes))}",
+        f"{len(sessions_raw_minutes)} photo shoot sessions, "
+        # f"{datetime.timedelta(minutes=sum(sessions_raw_minutes))}\n"
+        f"{sum(sessions_raw_minutes) / 60:.2f} hours total\n"
+        f"{len(sessions_edit_minutes)} editing sessions, "
+        # f"{datetime.timedelta(minutes=sum(sessions_edit_minutes))}",
+        f"{sum(sessions_edit_minutes) / 60:.2f} hours total",
         ha="left",
         va="bottom",
         fontsize=10,
@@ -149,6 +217,37 @@ def plot_sessions(
     )
     fig.tight_layout()
     fig.subplots_adjust(bottom=.30)
+    fig.savefig(out_filename)
+
+
+def get_metadata(
+    files: Iterable[pathlib.Path],
+) -> list[dict]:
+    with exiftool.ExifToolHelper() as et:
+        return et.get_metadata(files)
+
+
+def plot_metadata(
+    metadata_raw: list[dict],
+    metadata_edited: list[dict],
+    tag: str,
+    xlabel: str,
+    out_filename: pathlib.Path,
+):
+    data_raw = sorted([it[tag] for it in metadata_raw])
+    data_edit = sorted([it[tag] for it in metadata_edited])
+    df = pd.DataFrame({
+        "Raw photos": pd.Series(data_raw),
+        "Edited photos": pd.Series(data_edit),
+    })
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    sns.ecdfplot(
+        data=df,
+        ax=ax,
+    )
+    ax.set_xlabel(xlabel)
+    fig.tight_layout()
     fig.savefig(out_filename)
 
 
