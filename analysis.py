@@ -24,12 +24,14 @@ def main():
     parser.add_argument(
         "--delta-plot",
         type=pathlib.Path,
+        required=True,
         help="File name of the plot of time between "
              "raw files and edited files.",
     )
     parser.add_argument(
         "--sessions-plot",
         type=pathlib.Path,
+        required=True,
         help="File name of the plot of session durations.",
     )
     args = parser.parse_args()
