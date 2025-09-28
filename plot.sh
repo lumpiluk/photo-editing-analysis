@@ -9,6 +9,7 @@ poetry run ./analysis.py \
     --exposure-times-plot "$out_folder/exposure-times.pdf" \
     --apertures-plot "$out_folder/apertures.pdf" \
     --isos-plot "$out_folder/isos.pdf" \
+    --cache-metadata \
     /mnt/nfs/pictures/2025-09-27_all-eyes-on-gaza
 
 cd "$out_folder"

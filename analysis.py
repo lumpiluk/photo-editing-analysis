@@ -3,6 +3,7 @@
 from typing import Generator, Iterable
 
 import argparse
+import json
 import os
 import pathlib
 
@@ -13,56 +14,20 @@ import seaborn as sns
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "folders",
-        nargs="+",
-        type=pathlib.Path,
-        help="Image folders to analyze. "
-             "Assumes that each folder contains *.CR3 raw files "
-             "and a subfolder named 'converted' or 'converted_dt'.",
-    )
-    parser.add_argument(
-        "--delta-plot",
-        type=pathlib.Path,
-        help="File name of the plot of time between "
-             "raw files and edited files.",
-    )
-    parser.add_argument(
-        "--sessions-plot",
-        type=pathlib.Path,
-        help="File name of the plot of session durations.",
-    )
-    parser.add_argument(
-        "--focal-lengths-plot",
-        type=pathlib.Path,
-    )
-    parser.add_argument(
-        "--exposure-times-plot",
-        type=pathlib.Path,
-    )
-    parser.add_argument(
-        "--apertures-plot",
-        type=pathlib.Path,
-    )
-    parser.add_argument(
-        "--isos-plot",
-        type=pathlib.Path,
-    )
-    args = parser.parse_args()
-
-    raw_files = [
-        file
-        for folder in args.folders
-        for file in folder.glob("*.CR3")
-    ]
-    edited_files = [
-        file
-        for folder in args.folders
-        for file in folder.glob("converted*/*.jpg")
-    ]
+    args = parse_args()
 
     if args.delta_plot or args.sessions_plot:
+        raw_files = [
+            file
+            for folder in args.folders
+            for file in folder.glob(args.raw_files_glob)
+        ]
+        edited_files = [
+            file
+            for folder in args.folders
+            for file in folder.glob(args.edited_files_glob)
+        ]
+
         mtimes_raw = sorted(collect_file_stats(files=raw_files))
         mtimes_edit = sorted(collect_file_stats(files=edited_files))
 
@@ -90,13 +55,26 @@ def main():
             )
 
     if (
-            args.focal_lengths_plot
-            or args.exposure_times_plot
-            or args.apertures_plot
-            or args.isos_plot
+        args.focal_lengths_plot
+        or args.exposure_times_plot
+        or args.apertures_plot
+        or args.isos_plot
     ):
-        metadata_raw = get_metadata(raw_files)
-        metadata_edited = get_metadata(edited_files)
+        metadata_raw = []
+        metadata_edited = []
+        for folder in args.folders:
+            folder_metadata_raw = get_metadata(
+                files=(file for file in folder.glob(args.raw_files_glob)),
+                cache_file=folder / "metadata_raw.json",
+                write_cache=args.cache_metadata,
+            )
+            folder_metadata_edited = get_metadata(
+                files=(file for file in folder.glob(args.edited_files_glob)),
+                cache_file=folder / "metadata_edited.json",
+                write_cache=args.cache_metadata,
+            )
+            metadata_raw.extend(folder_metadata_raw)
+            metadata_edited.extend(folder_metadata_edited)
         # print(metadata_raw[0].keys())
 
         if args.focal_lengths_plot:
@@ -131,6 +109,62 @@ def main():
                 xlabel="ISO",
                 out_filename=args.isos_plot,
             )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "folders",
+        nargs="+",
+        type=pathlib.Path,
+        help="Image folders to analyze. "
+             "Assumes that each folder contains raw files and edited images, "
+             "as defined by --raw-files-glob and --edited-files-glob",
+    )
+    parser.add_argument(
+        "--delta-plot",
+        type=pathlib.Path,
+        help="File name of the plot of time between "
+             "raw files and edited files.",
+    )
+    parser.add_argument(
+        "--sessions-plot",
+        type=pathlib.Path,
+        help="File name of the plot of session durations.",
+    )
+    parser.add_argument(
+        "--focal-lengths-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--exposure-times-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--apertures-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--isos-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--cache-metadata",
+        action="store_true",
+        help="After reading the metadata of image files within a folder, "
+             "store the results in a JSON file in the same folder. "
+             "Reading metadata requires opening each file, which can be slow. ",
+    )
+    parser.add_argument(
+        "--raw-files-glob",
+        default="*.CR3",
+    )
+    parser.add_argument(
+        "--edited-files-glob",
+        default="converted*/*.jpg",
+    )
+    return parser.parse_args()
+
 
 def collect_file_stats(
     files: Iterable[pathlib.Path],
@@ -229,9 +263,18 @@ def plot_sessions(
 
 def get_metadata(
     files: Iterable[pathlib.Path],
+    cache_file: pathlib.Path | None = None,
+    write_cache=True,
 ) -> list[dict]:
+    if cache_file and cache_file.exists():
+        with open(cache_file, 'r') as fp:
+            return json.load(fp)
     with exiftool.ExifToolHelper() as et:
-        return et.get_metadata(files)
+        metadata = et.get_metadata(files, params=["-fast2"])
+        if write_cache and cache_file:
+            with open(cache_file, 'w') as fp:
+                json.dump(metadata, fp, indent=2)
+        return metadata
 
 
 def plot_metadata(
