@@ -3,14 +3,20 @@
 from typing import Generator, Iterable
 
 import argparse
+import fractions
 import json
 import os
 import pathlib
 
 import exiftool
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import pandas as pd
 import seaborn as sns
+
+
+# Further ideas:
+# - keep-ratio over time (1 folder = 1 data point)
 
 
 def main():
@@ -85,22 +91,32 @@ def process_metadata_plots(args: argparse.Namespace):
             tag="EXIF:ExposureTime",
             xlabel="Exposure time in seconds",
             out_filename=args.exposure_times_plot,
+            log_scale=True,
+            x_tick_formatter=fraction_formatter,
         )
     if args.apertures_plot:
         plot_metadata(
             metadata_lists=metadata_collections,
             metadata_labels=labels,
             tag="EXIF:FNumber",
-            xlabel="Aperture (F-number)",
+            xlabel="Aperture",
             out_filename=args.apertures_plot,
+            log_scale=True,
+            x_tick_formatter=aperture_formatter,
+            x_ticks=[1 * 2 ** i for i in range(0, 5, 1)],
         )
     if args.isos_plot:
+        x_tick_formatter = ticker.ScalarFormatter()
+        x_tick_formatter.set_scientific(False)
         plot_metadata(
             metadata_lists=metadata_collections,
             metadata_labels=labels,
             tag="EXIF:ISO",
             xlabel="ISO",
             out_filename=args.isos_plot,
+            log_scale=True,
+            x_tick_formatter=x_tick_formatter,
+            x_ticks=[100 * 2 ** i for i in range(0, 9, 2)],
         )
 
 
@@ -263,8 +279,12 @@ def get_sessions_from_time_series(
     session_start = timestamps_sec[0]
     for prev_time, cur_time in zip(timestamps_sec, timestamps_sec[1:]):
         if cur_time - prev_time >= min_break_between_sessions_sec:
-            yield prev_time - session_start
+            session_duration = prev_time - session_start
             session_start = cur_time
+            if session_duration > 0:
+                # Still reset session_start, but don't count sessions
+                # that are too short
+                yield session_duration
     # Final session:
     yield timestamps_sec[-1] - session_start
 
@@ -362,6 +382,9 @@ def plot_metadata(
     tag: str,
     xlabel: str,
     out_filename: pathlib.Path,
+    log_scale=False,
+    x_tick_formatter=None,
+    x_ticks: list[float] | None = None,
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
@@ -379,8 +402,36 @@ def plot_metadata(
         ax=ax,
     )
     ax.set_xlabel(xlabel)
+    if log_scale:
+        ax.set_xscale("log", base=2)
+    if x_ticks:
+        ax.set_xticks(x_ticks)
+    if x_tick_formatter:
+        ax.xaxis.set_major_formatter(x_tick_formatter)
     fig.tight_layout()
     fig.savefig(out_filename)
+
+
+def fraction_formatter(x, pos):
+    # (With help from Claude)
+    if x <= 0:
+        return "0"
+    elif x < 1:
+        frac = fractions.Fraction(x)
+        if frac.numerator == 1:
+            return f"1/{frac.denominator}"
+        else:
+            return f"{frac.numerator}/{frac.denominator}"
+    else:
+        if x == int(x):
+            return f"{int(x)}s"
+        else:
+            return f"{x:.1f}s"
+
+
+def aperture_formatter(x, pos):
+    # We just pretend it's fractions
+    return f"1/{x:g}"
 
 
 if __name__ == '__main__':
