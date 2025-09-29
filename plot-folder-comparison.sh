@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+out_folder=2025-09-20_vs_2025-09-27
+mkdir -p "$out_folder"
+poetry run ./analysis.py \
+    --delta-plot "$out_folder/delta.pdf" \
+    --sessions-plot "$out_folder/sessions.pdf" \
+    --focal-lengths-plot "$out_folder/focal-lengths.pdf" \
+    --exposure-times-plot "$out_folder/exposure-times.pdf" \
+    --apertures-plot "$out_folder/apertures.pdf" \
+    --isos-plot "$out_folder/isos.pdf" \
+    --cache-metadata \
+    --folder-comparison-labels "2025-09-20 #ExitGasEnterFuture" "2025-09-27 #AllEyesOnGaza" \
+    --compare-folders edited \
+    /mnt/nfs/pictures/{2025-09-20_fff_exit-gas-enter-future_draw-the-line,2025-09-27_all-eyes-on-gaza}
+
+cd "$out_folder"
+mogrify -format 'png' -density 300 -- *.pdf

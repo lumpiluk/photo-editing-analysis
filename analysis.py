@@ -15,51 +15,42 @@ import seaborn as sns
 
 def main():
     args = parse_args()
+    process_time_based_plots(args)
+    process_metadata_plots(args)
 
-    if args.delta_plot or args.sessions_plot:
-        raw_files = [
-            file
-            for folder in args.folders
-            for file in folder.glob(args.raw_files_glob)
-        ]
-        edited_files = [
-            file
-            for folder in args.folders
-            for file in folder.glob(args.edited_files_glob)
-        ]
 
-        mtimes_raw = sorted(collect_file_stats(files=raw_files))
-        mtimes_edit = sorted(collect_file_stats(files=edited_files))
-
-        if args.delta_plot:
-            plot_time_between_photos(
-                mtimes_list=[mtimes_raw, mtimes_edit],
-                mtimes_labels=["Photos shot", "Photos edited"],
-                out_filename=args.delta_plot,
-            )
-
-        if args.sessions_plot:
-            sessions_raw = get_sessions_from_time_series(
-                timestamps_sec=mtimes_raw,
-                min_break_between_sessions_sec=60 * 30,
-            )
-            sessions_edit = get_sessions_from_time_series(
-                timestamps_sec=mtimes_edit,
-                min_break_between_sessions_sec=60 * 30,
-            )
-            plot_sessions(
-                sessions_list=[sessions_raw, sessions_edit],
-                sessions_labels=["Photo shoot sessions", "Editing sessions"],
-                out_filename=args.sessions_plot,
-                show_info_text=True,
-            )
-
-    if (
+def process_metadata_plots(args: argparse.Namespace):
+    if not (
         args.focal_lengths_plot
         or args.exposure_times_plot
         or args.apertures_plot
         or args.isos_plot
     ):
+        return
+
+    labels = (
+        args.folder_comparison_labels
+        if args.compare_folders
+        else ["Raw photos", "Edited photos"]
+    )
+
+    metadata_collections: list[list[dict]] = []
+    if args.compare_folders:
+        if args.compare_folders == "raw":
+            glob_pattern = args.raw_files_glob
+            cache_filename = "metadata_raw.json"
+        else:
+            glob_pattern = args.edited_files_glob
+            cache_filename = "metadata_edited.json"
+        for folder in args.folders:
+            metadata_collections.append(
+                get_metadata(
+                    files=(file for file in folder.glob(glob_pattern)),
+                    cache_file=folder / cache_filename,
+                    write_cache=args.cache_metadata,
+                )
+            )
+    else:  # compare raw vs. edited aggregated over all folders
         metadata_raw = []
         metadata_edited = []
         for folder in args.folders:
@@ -75,40 +66,105 @@ def main():
             )
             metadata_raw.extend(folder_metadata_raw)
             metadata_edited.extend(folder_metadata_edited)
-        # print(metadata_raw[0].keys())
+        metadata_collections = [metadata_raw, metadata_edited]
 
-        if args.focal_lengths_plot:
-            plot_metadata(
-                metadata_lists=[metadata_raw, metadata_edited],
-                metadata_labels=["Raw photos", "Edited photos"],
-                tag="EXIF:FocalLength",
-                xlabel="Focal length in mm",
-                out_filename=args.focal_lengths_plot,
+    # print(metadata_collections[0][0].keys())
+
+    if args.focal_lengths_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            tag="EXIF:FocalLength",
+            xlabel="Focal length in mm",
+            out_filename=args.focal_lengths_plot,
+        )
+    if args.exposure_times_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            tag="EXIF:ExposureTime",
+            xlabel="Exposure time in seconds",
+            out_filename=args.exposure_times_plot,
+        )
+    if args.apertures_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            tag="EXIF:FNumber",
+            xlabel="Aperture (F-number)",
+            out_filename=args.apertures_plot,
+        )
+    if args.isos_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            tag="EXIF:ISO",
+            xlabel="ISO",
+            out_filename=args.isos_plot,
+        )
+
+
+def process_time_based_plots(args: argparse.Namespace):
+    if not args.delta_plot and not args.sessions_plot:
+        return
+    if args.compare_folders:
+        glob_pattern = (
+            args.raw_files_glob
+            if args.compare_folders == "raw"
+            else args.edited_files_glob
+        )
+        files_collections: list[list[pathlib.Path]] = [
+            [
+                file
+                for file in folder.glob(glob_pattern)
+            ]
+            for folder in args.folders
+        ]
+    else:  # compare raw vs. edited
+        files_collections: list[list[pathlib.Path]] = [
+            [
+                file
+                for folder in args.folders
+                for file in folder.glob(glob_pattern)
+            ]
+            for glob_pattern
+            in [args.raw_files_glob, args.edited_files_glob]
+        ]
+
+    mtimes_collections: list[list[float]] = [
+        sorted(collect_file_stats(files=files_collection))
+        for files_collection in files_collections
+    ]
+
+    if args.delta_plot:
+        plot_time_between_photos(
+            mtimes_list=mtimes_collections,
+            mtimes_labels=(
+                args.folder_comparison_labels
+                if args.compare_folders
+                else ["Photos shot", "Photos edited"]
+            ),
+            out_filename=args.delta_plot,
+        )
+
+    if args.sessions_plot:
+        sessions_collections = [
+            get_sessions_from_time_series(
+                timestamps_sec=mtimes_collection,
+                min_break_between_sessions_sec=60 * 30,
             )
-        if args.exposure_times_plot:
-            plot_metadata(
-                metadata_lists=[metadata_raw, metadata_edited],
-                metadata_labels=["Raw photos", "Edited photos"],
-                tag="EXIF:ExposureTime",
-                xlabel="Exposure time in seconds",
-                out_filename=args.exposure_times_plot,
-            )
-        if args.apertures_plot:
-            plot_metadata(
-                metadata_lists=[metadata_raw, metadata_edited],
-                metadata_labels=["Raw photos", "Edited photos"],
-                tag="EXIF:FNumber",
-                xlabel="Aperture (F-number)",
-                out_filename=args.apertures_plot,
-            )
-        if args.isos_plot:
-            plot_metadata(
-                metadata_lists=[metadata_raw, metadata_edited],
-                metadata_labels=["Raw photos", "Edited photos"],
-                tag="EXIF:ISO",
-                xlabel="ISO",
-                out_filename=args.isos_plot,
-            )
+            for mtimes_collection in mtimes_collections
+        ]
+        plot_sessions(
+            sessions_list=sessions_collections,
+            sessions_labels=(
+                args.folder_comparison_labels
+                if args.compare_folders
+                else ["Photo shoot sessions", "Editing sessions"]
+            ),
+            out_filename=args.sessions_plot,
+            show_info_text=True,
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -163,7 +219,30 @@ def parse_args() -> argparse.Namespace:
         "--edited-files-glob",
         default="converted*/*.jpg",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--compare-folders",
+        choices=["raw", "edited"],
+        help="Instead of aggregating over all folders, compare them instead. "
+             "If 'raw': Only use the raw files; if 'edited': only use the "
+             "edited files (see --raw-files-glob and --edited-files-glob).",
+    )
+    parser.add_argument(
+        "--folder-comparison-labels",
+        nargs='*',
+        help="Label to use for each folder in the legend of each plot. "
+             "Only used if --compare-folders is active.",
+    )
+    args = parser.parse_args()
+    if (
+        args.compare_folders
+        and len(args.folders) != len(args.folder_comparison_labels)
+    ):
+        raise ValueError(
+            "When using --compare-folders, "
+            "--folder-comparison-labels must have the same number of "
+            "arguments as there are folders."
+        )
+    return args
 
 
 def collect_file_stats(
