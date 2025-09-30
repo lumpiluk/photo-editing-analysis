@@ -3,6 +3,7 @@
 from typing import Generator, Iterable
 
 import argparse
+import datetime
 import fractions
 import json
 import os
@@ -23,6 +24,14 @@ import seaborn as sns
 
 def main():
     args = parse_args()
+
+    for folder in args.folders:
+        if not folder.exists():
+            raise ValueError(
+                f"The provided folder does not seem to exist: "
+                f"{folder}"
+            )
+
     process_time_based_plots(args)
     process_metadata_plots(args)
 
@@ -78,6 +87,12 @@ def process_metadata_plots(args: argparse.Namespace):
 
     # print(metadata_collections[0][0].keys())
 
+    if args.hour_of_day_plot:
+        plot_photo_capture_hours_of_day(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            out_filename=args.hour_of_day_plot,
+        )
     if args.focal_lengths_plot:
         plot_metadata(
             metadata_lists=metadata_collections,
@@ -207,6 +222,10 @@ def parse_args() -> argparse.Namespace:
         help="File name of the plot of session durations.",
     )
     parser.add_argument(
+        "--hour-of-day-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
         "--focal-lengths-plot",
         type=pathlib.Path,
     )
@@ -227,7 +246,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="After reading the metadata of image files within a folder, "
              "store the results in a JSON file in the same folder. "
-             "Reading metadata requires opening each file, which can be slow. ",
+             "Reading metadata requires opening each file, which can be slow.",
     )
     parser.add_argument(
         "--raw-files-glob",
@@ -410,6 +429,48 @@ def plot_metadata(
         ax.set_xticks(x_ticks)
     if x_tick_formatter:
         ax.xaxis.set_major_formatter(x_tick_formatter)
+    fig.tight_layout()
+    fig.savefig(out_filename)
+
+
+def plot_photo_capture_hours_of_day(
+    metadata_lists: list[list[dict]],
+    metadata_labels: list[str],
+    out_filename: pathlib.Path,
+):
+    assert len(metadata_lists) == len(metadata_labels)
+
+    df = pd.DataFrame({
+        metadata_label: pd.Series(sorted([
+            datetime.datetime.fromisoformat(
+                # EXIF dates look like 2025:09:27 18:23:00 instead of
+                # 2025-09-27 18:23:00, so we'll have to fix that:
+                it["EXIF:DateTimeOriginal"].replace(":", "-", count=2)
+            )
+            for it in metadata_list
+        ]))
+        for metadata_label, metadata_list
+        in zip(metadata_labels, metadata_lists)
+    })
+    df_hours = df.apply(lambda col: col.dt.hour)
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    sns.histplot(
+        data=df_hours.melt(
+            var_name="Category",
+            value_name="Hour"
+        ),
+        x="Hour",
+        hue="Category",
+        bins=24,
+        binrange=(0, 24),
+        multiple="layer",  # or "dodge" for bars side-by-side
+        ax=ax,
+        kde=False,
+    )
+    ax.set_xlabel("Hour of the day")
+    ax.set_ylabel("Number of photos")
+    ax.set_xticks(range(0, 25, 2))
     fig.tight_layout()
     fig.savefig(out_filename)
 

@@ -5,6 +5,7 @@ mkdir -p "$out_folder"
 poetry run ./analysis.py \
     --delta-plot "$out_folder/delta.pdf" \
     --sessions-plot "$out_folder/sessions.pdf" \
+    --hour-of-day-plot "$out_folder/hour-of-day.pdf" \
     --focal-lengths-plot "$out_folder/focal-lengths.pdf" \
     --exposure-times-plot "$out_folder/exposure-times.pdf" \
     --apertures-plot "$out_folder/apertures.pdf" \
