@@ -38,7 +38,8 @@ def main():
 
 def process_metadata_plots(args: argparse.Namespace):
     if not (
-        args.focal_lengths_plot
+        args.hour_of_day_plot
+        or args.focal_lengths_plot
         or args.exposure_times_plot
         or args.apertures_plot
         or args.isos_plot
