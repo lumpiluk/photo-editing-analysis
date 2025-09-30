@@ -17,6 +17,8 @@ import seaborn as sns
 
 # Further ideas:
 # - keep-ratio over time (1 folder = 1 data point)
+# - photos per hour (by session)
+# - photos per hour of day (most interesting probably for single days)
 
 
 def main():
