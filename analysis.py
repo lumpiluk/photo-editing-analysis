@@ -455,24 +455,28 @@ def plot_photo_capture_hours_of_day(
     df_hours = df.apply(lambda col: col.dt.hour)
 
     fig, ax = plt.subplots(figsize=(4, 3))
-    sns.histplot(
+    g = sns.displot(
         data=df_hours.melt(
             var_name="Category",
-            value_name="Hour"
+            value_name="Hour",
         ),
         x="Hour",
-        hue="Category",
+        col="Category",
+        col_wrap=3 if len(df_hours.columns) > 4 else 2,
         bins=24,
         binrange=(0, 24),
-        multiple="layer",  # or "dodge" for bars side-by-side
-        ax=ax,
-        kde=False,
+        height=3.5,
+        aspect=1.3,
+        facet_kws={"sharex": True, "sharey": True},
     )
-    ax.set_xlabel("Hour of the day")
-    ax.set_ylabel("Number of photos")
-    ax.set_xticks(range(0, 25, 2))
-    fig.tight_layout()
-    fig.savefig(out_filename)
+    g.set_axis_labels("Hour of Day", "Number of Photos")
+    g.set_titles(col_template="{col_name}", weight="bold")
+    g.fig.subplots_adjust(top=.93)
+    g.set(xticks=range(0, 25, 2))
+    for ax in g.axes.flat:
+        ax.tick_params(labelbottom=True)
+    g.tight_layout()
+    g.fig.savefig(out_filename)
 
 
 def fraction_formatter(x, pos):

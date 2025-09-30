@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-out_folder=2024-02-14_vs_2025-05-17_vs_2025-09-20_edited
+out_folder=2025-02-14_vs_2025-05-17_vs_2025-09-20_edited
 mkdir -p "$out_folder"
 poetry run ./analysis.py \
     --delta-plot "$out_folder/delta.pdf" \
@@ -11,7 +11,7 @@ poetry run ./analysis.py \
     --apertures-plot "$out_folder/apertures.pdf" \
     --isos-plot "$out_folder/isos.pdf" \
     --cache-metadata \
-    --folder-comparison-labels "2025-02-14" "2025-05-17" "2025-09-20" \
+    --folder-comparison-labels 2025-02-14 2025-05-17 2025-09-20 \
     --compare-folders edited \
     ~/sshfs/freenas/data/pictures/{2025-02-14*,2025-05-17*,2025-09-20*}
 
