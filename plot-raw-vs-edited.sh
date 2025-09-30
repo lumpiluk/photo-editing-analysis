@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
 out_folder=2025-09-27
 mkdir -p "$out_folder"
