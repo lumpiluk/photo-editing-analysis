@@ -11,7 +11,9 @@ poetry run ./analysis.py \
     --apertures-plot "$out_folder/apertures.pdf" \
     --isos-plot "$out_folder/isos.pdf" \
     --cache-metadata \
-    /mnt/nfs/pictures/2025-09-27_all-eyes-on-gaza
+    --raw-files-glob '*.CR3' \
+    --edited-files-glob 'converted*/*.jpg' \
+    /mnt/nfs/pictures/2025-09-27_all*
 
 cd "$out_folder"
 mogrify -format 'png' -density 300 -- *.pdf

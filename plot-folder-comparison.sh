@@ -13,6 +13,8 @@ poetry run ./analysis.py \
     --cache-metadata \
     --folder-comparison-labels 2025-02-14 2025-05-17 2025-09-20 \
     --compare-folders edited \
+    --raw-files-glob '*.CR3' \
+    --edited-files-glob 'converted*/*.jpg' \
     ~/sshfs/freenas/data/pictures/{2025-02-14*,2025-05-17*,2025-09-20*}
 
 cd "$out_folder"
