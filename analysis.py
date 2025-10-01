@@ -309,8 +309,8 @@ def get_sessions_from_time_series(
     timestamps_sec: Iterable[float],
     min_break_between_sessions_sec: float = 60 * 30,
 ) -> Generator[float]:
-    timestamps_sec = sorted(timestamps_sec)
     assert len(timestamps_sec) > 1
+    timestamps_sec = sorted(timestamps_sec)
     session_start = timestamps_sec[0]
     for prev_time, cur_time in zip(timestamps_sec, timestamps_sec[1:]):
         if cur_time - prev_time >= min_break_between_sessions_sec:
@@ -329,8 +329,8 @@ def plot_time_between_photos(
     mtimes_labels: list[str],
     out_filename: pathlib.Path,
 ):
-    # Compute delta times (first item will be NaN):
     df = pd.DataFrame({
+        # Compute delta times (first item will be NaN):
         label: pd.Series(mtimes).diff()
         for label, mtimes
         in zip(mtimes_labels, mtimes_list)

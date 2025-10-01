@@ -3,6 +3,7 @@
 This project allows you to analyze one or multiple of your photo folders and generate plots for the following metrics:
 - Time between photos
 - Session duration
+- Number of photos by hour of day
 - Focal lengths
 - Aperture values
 - ISO values
