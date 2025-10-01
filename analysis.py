@@ -37,7 +37,8 @@ def main():
 
 def process_metadata_plots(args: argparse.Namespace):
     if not (
-        args.focal_lengths_plot
+        args.hour_of_day_plot
+        or args.focal_lengths_plot
         or args.exposure_times_plot
         or args.apertures_plot
         or args.isos_plot
@@ -249,7 +250,8 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="After reading the metadata of image files within a folder, "
              "store the results in a JSON file in the same folder. "
-             "Reading metadata requires opening each file, which can be slow.",
+             "Reading metadata requires opening each file, which can be slow "
+             "especially for raw files.",
     )
     parser.add_argument(
         "--raw-files-glob",
