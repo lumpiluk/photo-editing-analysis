@@ -40,6 +40,7 @@ def process_metadata_plots(args: argparse.Namespace):
     if not (
         args.hour_of_day_plot
         or args.focal_lengths_plot
+        or args.focal_lengths_full_frame_plot
         or args.exposure_times_plot
         or args.apertures_plot
         or args.isos_plot
@@ -63,7 +64,9 @@ def process_metadata_plots(args: argparse.Namespace):
         for folder in args.folders:
             metadata_collections.append(
                 get_metadata(
-                    files=(file for file in folder.glob(glob_pattern)),
+                    files=(file for file in folder.glob(
+                        glob_pattern, case_sensitive=False
+                    )),
                     cache_file=folder / cache_filename,
                     write_cache=args.cache_metadata,
                 )
@@ -73,12 +76,16 @@ def process_metadata_plots(args: argparse.Namespace):
         metadata_edited = []
         for folder in args.folders:
             folder_metadata_raw = get_metadata(
-                files=(file for file in folder.glob(args.raw_files_glob)),
+                files=(file for file in folder.glob(
+                    args.raw_files_glob, case_sensitive=False
+                )),
                 cache_file=folder / "metadata_raw.json",
                 write_cache=args.cache_metadata,
             )
             folder_metadata_edited = get_metadata(
-                files=(file for file in folder.glob(args.edited_files_glob)),
+                files=(file for file in folder.glob(
+                    args.edited_files_glob, case_sensitive=False
+                )),
                 cache_file=folder / "metadata_edited.json",
                 write_cache=args.cache_metadata,
             )
@@ -102,6 +109,15 @@ def process_metadata_plots(args: argparse.Namespace):
             xlabel="Focal length in mm",
             out_filename=args.focal_lengths_plot,
         )
+    if args.focal_lengths_full_frame_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            # tag="EXIF:FocalLengthIn35mmFormat",
+            tag="Composite:FocalLength35efl",
+            xlabel="Focal length in mm (35 mm equiv.)",
+            out_filename=args.focal_lengths_full_frame_plot,
+        )
     if args.exposure_times_plot:
         plot_metadata(
             metadata_lists=metadata_collections,
@@ -111,6 +127,7 @@ def process_metadata_plots(args: argparse.Namespace):
             out_filename=args.exposure_times_plot,
             log_scale=True,
             x_tick_formatter=fraction_formatter,
+            x_tick_params={"labelrotation": 30},
         )
     if args.apertures_plot:
         plot_metadata(
@@ -150,7 +167,7 @@ def process_time_based_plots(args: argparse.Namespace):
         files_collections: list[list[pathlib.Path]] = [
             [
                 file
-                for file in folder.glob(glob_pattern)
+                for file in folder.glob(glob_pattern, case_sensitive=False)
             ]
             for folder in args.folders
         ]
@@ -159,7 +176,7 @@ def process_time_based_plots(args: argparse.Namespace):
             [
                 file
                 for folder in args.folders
-                for file in folder.glob(glob_pattern)
+                for file in folder.glob(glob_pattern, case_sensitive=False)
             ]
             for glob_pattern
             in [args.raw_files_glob, args.edited_files_glob]
@@ -228,6 +245,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--focal-lengths-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--focal-lengths-full-frame-plot",
         type=pathlib.Path,
     )
     parser.add_argument(
@@ -383,7 +404,7 @@ def plot_sessions(
 
 
 def get_metadata(
-    files: Iterable[pathlib.Path],
+    files: list[pathlib.Path],
     cache_file: pathlib.Path | None = None,
     write_cache=True,
 ) -> list[dict]:
@@ -391,7 +412,14 @@ def get_metadata(
         with open(cache_file, 'r') as fp:
             return json.load(fp)
     with exiftool.ExifToolHelper() as et:
-        metadata = et.get_metadata(files, params=["-fast2"])
+        try:
+            metadata = et.get_metadata(files, params=["-fast2"])
+        except exiftool.exceptions.ExifToolOutputEmptyError:
+            print(
+                f"No metadata found for images in "
+                f"{files[0].parent}"
+            )
+            return [dict()]
         if write_cache and cache_file:
             with open(cache_file, 'w') as fp:
                 json.dump(metadata, fp, indent=2)
@@ -407,6 +435,7 @@ def plot_metadata(
     log_scale=False,
     x_tick_formatter=None,
     x_ticks: list[float] | None = None,
+    x_tick_params: dict | None = None,
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
@@ -430,6 +459,9 @@ def plot_metadata(
         ax.set_xticks(x_ticks)
     if x_tick_formatter:
         ax.xaxis.set_major_formatter(x_tick_formatter)
+    if x_tick_params:
+        ax.tick_params(axis='x', **x_tick_params)
+    sns.move_legend(ax, "best")
     fig.tight_layout()
     fig.savefig(out_filename)
 
