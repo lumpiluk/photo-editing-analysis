@@ -19,7 +19,6 @@ import seaborn as sns
 # Further ideas:
 # - keep-ratio over time (1 folder = 1 data point)
 # - photos per hour (by session)
-# - photos per hour of day (most interesting probably for single days)
 
 
 def main():
@@ -219,14 +218,18 @@ def process_time_based_plots(args: argparse.Namespace):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="Analyze and plot a number of different metrics for your "
+                    "photographs. ",
+    )
     parser.add_argument(
         "folders",
         nargs="+",
         type=pathlib.Path,
         help="Image folders to analyze. "
              "Assumes that each folder contains raw files and edited images, "
-             "as defined by --raw-files-glob and --edited-files-glob",
+             "as defined by --raw-files-glob and --edited-files-glob.",
     )
     parser.add_argument(
         "--delta-plot",
@@ -268,21 +271,31 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="After reading the metadata of image files within a folder, "
              "store the results in a JSON file in the same folder. "
-             "Reading metadata requires opening each file, which can be slow.",
+             "Reading metadata requires opening each file, which can be slow "
+             "especially for raw files.",
     )
     parser.add_argument(
         "--raw-files-glob",
         default="*.CR3",
+        help="Glob pattern for finding raw files within each provided folder. "
+             "Take care to pass this value in single quotation marks; "
+             "otherwise your shell may try to expand "
+             "the pattern prematurely.",
     )
     parser.add_argument(
         "--edited-files-glob",
         default="converted*/*.jpg",
+        help="Glob pattern for finding edited files within each "
+             "provided folder. "
+             "Take care to pass this value in single quotation marks; "
+             "otherwise your shell may try to expand "
+             "the pattern prematurely.",
     )
     parser.add_argument(
         "--compare-folders",
         choices=["raw", "edited"],
         help="Instead of aggregating over all folders, compare them instead. "
-             "If 'raw': Only use the raw files; if 'edited': only use the "
+             "If 'raw': only use the raw files; if 'edited': only use the "
              "edited files (see --raw-files-glob and --edited-files-glob).",
     )
     parser.add_argument(
@@ -317,8 +330,8 @@ def get_sessions_from_time_series(
     timestamps_sec: Iterable[float],
     min_break_between_sessions_sec: float = 60 * 30,
 ) -> Generator[float]:
-    timestamps_sec = sorted(timestamps_sec)
     assert len(timestamps_sec) > 1
+    timestamps_sec = sorted(timestamps_sec)
     session_start = timestamps_sec[0]
     for prev_time, cur_time in zip(timestamps_sec, timestamps_sec[1:]):
         if cur_time - prev_time >= min_break_between_sessions_sec:
@@ -337,8 +350,8 @@ def plot_time_between_photos(
     mtimes_labels: list[str],
     out_filename: pathlib.Path,
 ):
-    # Compute delta times (first item will be NaN):
     df = pd.DataFrame({
+        # Compute delta times (first item will be NaN):
         label: pd.Series(mtimes).diff()
         for label, mtimes
         in zip(mtimes_labels, mtimes_list)
