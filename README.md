@@ -35,3 +35,17 @@ First you should decide if you want to compare your raw files with your edited f
 You can switch to the latter behavior by using the `--compare-folders` argument.
 
 Have a look at the examples in `plot-folder-comparison.sh` and `plot-raw-vs-edited.sh` and adjust the paths as needed.
+
+### Examples
+
+Compare the time difference between each photo that you shot versus each photo that you edited, based on the file modification timestamps.
+
+```bash
+analyze-photos \
+    --raw-files-glob '*.CR3' \
+    --edited-files-glob 'converted*/*.jpg' \
+    --delta-plot 'delta_raw-vs-jpg.pdf' \
+    /path/to/images/2025-09-20 /path/to/images/2025-10-*
+```
+
+![ECDF plot of delta times between raw and edited photos](examples/delta_raw-vs-jpg.png)

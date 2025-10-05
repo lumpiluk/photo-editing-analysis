@@ -1,5 +1,7 @@
 import fractions
 
+import matplotlib as mpl
+
 from .metadata import plot_metadata, plot_photo_capture_hours_of_day
 from .sessions import plot_sessions
 from .time_between_photos import plot_time_between_photos

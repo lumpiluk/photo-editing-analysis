@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 
+import matplotlib as mpl
 import matplotlib.ticker as ticker
 
 from photography_analysis import (
@@ -27,6 +28,10 @@ def main():
                 f"The provided folder does not seem to exist: "
                 f"{folder}"
             )
+
+    # Give plots a reasonable size when users decide to save them
+    # as raster graphics:
+    mpl.rcParams['figure.dpi'] = 300
 
     process_time_based_plots(args)
     process_metadata_plots(args)
