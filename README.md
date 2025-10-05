@@ -38,7 +38,12 @@ Have a look at the examples in `plot-folder-comparison.sh` and `plot-raw-vs-edit
 
 ### Examples
 
-Compare the time difference between each photo that you shot versus each photo that you edited, based on the file modification timestamps.
+Compare the time difference between each photo that you shot versus each photo that you edited, based on the file modification timestamps:
+
+![ECDF plot of delta times between raw and edited photos](examples/delta_raw-vs-jpg.png)
+
+<details>
+<summary>Details</summary>
 
 ```bash
 analyze-photos \
@@ -65,5 +70,97 @@ Each of these folders is structured as follows:
 
 So, to tell the analysis where to find my raw files and my edited files in each folder, I passed the arguments `--raw-files-glob` and `--edited-files-glob` accordingly.
 Be careful to use single quotation marks for these arguments, otherwise your shell might evaluate the asterisks prematurely!
+</details>
 
-![ECDF plot of delta times between raw and edited photos](examples/delta_raw-vs-jpg.png)
+---
+
+Compare session durations between each photo that you shot versus each photo that you edited.
+A session is defined by a sequence of photos that have no break longer than 30 minutes between them.
+
+![ECDF plot of session durations compared between raw and edited photos](examples/sessions_raw-vs-jpg.png)
+
+<details>
+<summary>Details</summary>
+
+```bash
+analyze-photos \
+    --raw-files-glob '*.CR3' \
+    --edited-files-glob 'converted*/*.jpg' \
+    --sessions-plot 'sessions_raw-vs-jpg.pdf' \
+    /path/to/images/2025-*
+```
+</details>
+
+---
+
+Compare session durations between different folders for all edited photos in them:
+
+![ECDF plot of session durations compared between two folders](examples/sessions_folders.png)
+
+<details>
+<summary>Details</summary>
+
+```bash
+analyze-photos \
+    --compare-folders edited \
+    --folder-comparison-labels 'Folder A' 'Folder B' \
+    --edited-files-glob 'converted*/*.jpg' \
+    --sessions-plot 'sessions_folders.pdf' \
+    /path/to/images/{2025-09-20*,2025-09-27*}
+```
+</details>
+
+---
+
+Compare how many photos you shot (or edited) for each hour of the day on different occasions (i.e., in different folders):
+
+![Two histograms showing the number of photos taken vs. the hour of day](examples/hour-of-day_folders.png)
+
+<details>
+<summary>Details</summary>
+
+```bash
+analyze-photos \
+    --compare-folders edited \
+    --folder-comparison-labels 'Folder A' 'Folder B' \
+    --edited-files-glob 'converted*/*.jpg' \
+    --hour-of-day-plot 'hour-of-day_folders.pdf' \
+    --cache-metadata \
+    /path/to/images/{2025-09-20*,2025-09-27*}
+```
+
+Unlike the previous plots, which used file modification timestamps, this one uses EXIF metadata.
+Reading metadata is slightly slower than reading file modification times for JPEGs, and it can be significantly slower for raw files.
+The `--cache-metadata` option will write a JSON file to each provided folder named either `metadata_raw.json` or `metadata_edited.json`, accordingly.
+If such a file already exists, metadata will be read from this file instead of reading all image files again.
+</details>
+
+---
+
+Plot multiple metrics at once, such as focal lengths, exposure times, apertures, iso values, or light values:
+
+![ECDF plot of focal lengths compared between two folders](examples/focal-lengths_folders.png)
+![ECDF plot of exposure times compared between two folders](examples/exposure-times_folders.png)
+![ECDF plot of aperture values compared between two folders](examples/apertures_folders.png)
+![ECDF plot of iso values compared between two folders](examples/isos_folders.png)
+![ECDF plot of light values compared between two folders](examples/light-values_folders.png)
+
+<details>
+
+```bash
+analyze-photos \
+    --compare-folders edited \
+    --folder-comparison-labels 'Folder A' 'Folder B' \
+    --edited-files-glob 'converted*/*.jpg' \
+    --focal-lengths-plot 'focal-lengths_folders.pdf' \
+    --exposure-times-plot 'exposure-times_folders.pdf' \
+    --apertrues-plot 'apertures_folders.pdf' \
+    --isos-plot 'isos_folders.pdf' \
+    --light-values-plot 'light-values_folders.pdf' \
+    --cache-metadata \
+    /path/to/images/{2025-09-20*,2025-09-27*}
+```
+
+For the definition of `LightValue`, check the [Exiftool documentation for composite tags](https://exiftool.org/TagNames/Composite.html).
+According to them, LightValue is "similar to exposure value but normalized to ISO 100," so it should give us an idea how much light there was in the scenes we tried to capture (assuming we always tend to a 'standard' exposure).
+</details>

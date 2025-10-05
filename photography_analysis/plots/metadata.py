@@ -84,7 +84,7 @@ def plot_photo_capture_hours_of_day(
         aspect=1.3,
         facet_kws={"sharex": True, "sharey": True},
     )
-    g.set_axis_labels("Hour of Day", "Number of Photos")
+    g.set_axis_labels("Hour of day", "Number of photos")
     g.set_titles(col_template="{col_name}", weight="bold")
     g.fig.subplots_adjust(top=.93)
     g.set(xticks=range(0, 25, 2))
