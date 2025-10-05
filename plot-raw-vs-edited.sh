@@ -12,6 +12,7 @@ poetry run ./analysis.py \
     --exposure-times-plot "$out_folder/exposure-times.pdf" \
     --apertures-plot "$out_folder/apertures.pdf" \
     --isos-plot "$out_folder/isos.pdf" \
+    --light-values-plot "$out_folder/light-values.pdf" \
     --cache-metadata \
     --raw-files-glob '*.CR3' \
     --edited-files-glob 'converted*/*.jpg' \

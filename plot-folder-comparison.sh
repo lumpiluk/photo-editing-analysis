@@ -12,12 +12,13 @@ poetry run ./analysis.py \
     --exposure-times-plot "$out_folder/exposure-times.pdf" \
     --apertures-plot "$out_folder/apertures.pdf" \
     --isos-plot "$out_folder/isos.pdf" \
+    --light-values-plot "$out_folder/light-values.pdf" \
     --cache-metadata \
     --folder-comparison-labels 2025-02-14 2025-05-17 2025-09-20 \
     --compare-folders edited \
     --raw-files-glob '*.CR3' \
     --edited-files-glob 'converted*/*.jpg' \
-    ~/sshfs/freenas/data/pictures/{2025-02-14*,2025-05-17*,2025-09-20*}
+    /mnt/nfs/pictures/{2025-02-14*,2025-05-17*,2025-09-20*}
 
 cd "$out_folder"
 mogrify -format 'png' -density 300 -- *.pdf

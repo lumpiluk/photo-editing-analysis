@@ -19,6 +19,11 @@ import seaborn as sns
 # Further ideas:
 # - keep-ratio over time (1 folder = 1 data point)
 # - photos per hour (by session)
+# - cropping (either based on Composite:ScaleFactor35efl or, e.g., image width)
+# - (Optionally) use Composite:SubSecModifyDate and CreateDate instead of stat
+# - Compare editing parameters of Lightroom users (XMP tags)
+# - --custom-metadata-plot, nargs='*'; --custom-metadata-plot-{tag,xaxis-label}
+# - optionally as many glob patterns as there are folders
 
 
 def main():
@@ -43,6 +48,8 @@ def process_metadata_plots(args: argparse.Namespace):
         or args.exposure_times_plot
         or args.apertures_plot
         or args.isos_plot
+        or args.light_values_plot
+        or args.crop_factors_plot
     ):
         return
 
@@ -152,7 +159,24 @@ def process_metadata_plots(args: argparse.Namespace):
             x_tick_formatter=x_tick_formatter,
             x_ticks=[100 * 2 ** i for i in range(0, 9, 2)],
         )
-
+    if args.light_values_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            tag="Composite:LightValue",
+            # Def.: https://exiftool.org/TagNames/Composite.html
+            # lv = 2 * log2(f_number) - log2(exp_time) - log2(iso/100)
+            xlabel="Light Value (EV at ISO 100)",
+            out_filename=args.light_values_plot,
+        )
+    if args.crop_factors_plot:
+        plot_metadata(
+            metadata_lists=metadata_collections,
+            metadata_labels=labels,
+            tag="Composite:ScaleFactor35efl",
+            xlabel="Scale factor (compared to 35 mm film)",
+            out_filename=args.crop_factors_plot,
+        )
 
 def process_time_based_plots(args: argparse.Namespace):
     if not args.delta_plot and not args.sessions_plot:
@@ -264,6 +288,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--isos-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--light-values-plot",
+        type=pathlib.Path,
+    )
+    parser.add_argument(
+        "--crop-factors-plot",
         type=pathlib.Path,
     )
     parser.add_argument(
