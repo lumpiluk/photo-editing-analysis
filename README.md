@@ -34,7 +34,7 @@ analyze-photos -h
 First you should decide if you want to compare your raw files with your edited files in each plot, aggregated over all folders, or if you want to compare each folder.
 You can switch to the latter behavior by using the `--compare-folders` argument.
 
-Have a look at the examples in `plot-folder-comparison.sh` and `plot-raw-vs-edited.sh` and adjust the paths as needed.
+For complete scripts, have a look at `plot-folder-comparison.sh` or `plot-raw-vs-edited.sh` in the `examples` folder and adjust the paths as needed.
 
 ### Examples
 
@@ -155,7 +155,7 @@ analyze-photos \
     --edited-files-glob 'converted*/*.jpg' \
     --focal-lengths-plot 'focal-lengths_folders.pdf' \
     --exposure-times-plot 'exposure-times_folders.pdf' \
-    --apertrues-plot 'apertures_folders.pdf' \
+    --apertures-plot 'apertures_folders.pdf' \
     --isos-plot 'isos_folders.pdf' \
     --light-values-plot 'light-values_folders.pdf' \
     --cache-metadata \
