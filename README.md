@@ -1,4 +1,4 @@
-# Empirical Analysis of Your Photography Habits
+# Empirical Analysis of Photography Habits
 
 This project allows you to analyze one or multiple of your photo folders and generate plots for the following metrics:
 - Time between photos
@@ -146,6 +146,7 @@ Plot multiple metrics at once, such as focal lengths, exposure times, apertures,
 ![ECDF plot of light values compared between two folders](examples/light-values_folders.png)
 
 <details>
+<summary>Details</summary>
 
 ```bash
 analyze-photos \
@@ -163,4 +164,63 @@ analyze-photos \
 
 For the definition of `LightValue`, check the [Exiftool documentation for composite tags](https://exiftool.org/TagNames/Composite.html).
 According to them, LightValue is "similar to exposure value but normalized to ISO 100," so it should give us an idea how much light there was in the scenes we tried to capture (assuming we always tend to a 'standard' exposure).
+</details>
+
+---
+
+Plot Lightroom editing parameters.
+Many photographers still use proprietary editing software such as Adobe Lightroom, and by default Lightroom exports its editing parameters into the metadata of each exported image.
+If you have folders with photos from different photographers, you can generate plots such as these:
+
+![ECDF plot of the Lightroom 'highlights' setting for 4 photographers](examples/lr_highlights.png)
+![ECDF plot of the Lightroom 'saturation' setting for 4 photographers](examples/lr_saturation.png)
+
+<details>
+<summary>Details</summary>
+
+```bash
+analyze-photos \
+    --cache-metadata \
+    --folder-comparison-labels 'Person A' 'Person B' 'Person C' 'Person D' \
+    --compare-folders edited \
+    --use-nan-if-metadata-missing \
+    --custom-metadata-plot \
+        'lr_exposure.pdf' \
+        'lr_contrast.pdf' \
+        'lr_highlights.pdf' \
+        'lr_shadows.pdf' \
+        'lr_whites.pdf' \
+        'lr_blacks.pdf' \
+        'lr_texture.pdf' \
+        'lr_clarity.pdf' \
+        'lr_dehaze.pdf' \
+        'lr_vibrance.pdf' \
+        'lr_saturation.pdf' \
+    --custom-metadata-plot-tag \
+        'XMP:Exposure2012' \
+        'XMP:Contrast2012' \
+        'XMP:Highlights2012' \
+        'XMP:Shadows2012' \
+        'XMP:Whites2012' \
+        'XMP:Blacks2012' \
+        'XMP:Texture' \
+        'XMP:Clarity2012' \
+        'XMP:Dehaze' \
+        'XMP:Vibrance' \
+        'XMP:Saturation' \
+    --custom-metadata-plot-axis-label \
+        'Exposure' \
+        'Contrast' \
+        'Highlights' \
+        'Shadows' \
+        'Whites' \
+        'Blacks' \
+        'Texture' \
+        'Clarity' \
+        'Dehaze' \
+        'Vibrance' \
+        'Saturation' \
+    --edited-files-glob '**/*.jpg' \
+    /path/to/images/{PersonA,PersonB,PersonC,PersonD}
+```
 </details>

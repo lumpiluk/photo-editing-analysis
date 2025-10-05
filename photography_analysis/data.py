@@ -1,6 +1,7 @@
 from typing import Generator, Iterable
 
 import json
+import math
 import os
 import pathlib
 
@@ -37,6 +38,28 @@ def get_metadata(
             with open(cache_file, 'w') as fp:
                 json.dump(metadata, fp, indent=2)
         return metadata
+
+
+def try_get_tag(
+    metadata: dict,
+    tag: str,
+    use_nan=False
+):
+    if not metadata:
+        raise ValueError("Metadata is empty")
+    if tag not in metadata:
+        if use_nan:
+            return math.nan
+        if "SourceFile" in metadata:
+            raise ValueError(
+                f"Could not find the tag '{tag}' "
+                f"in {metadata["SourceFile"]}"
+            )
+        raise ValueError(
+            f"Could not find the tag '{tag}' "
+            f"and 'SourceFile' is not given either."
+        )
+    return metadata[tag]
 
 
 def get_sessions_from_time_series(

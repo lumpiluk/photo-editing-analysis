@@ -22,13 +22,6 @@ from photography_analysis import (
 def main():
     args = parse_args()
 
-    for folder in args.folders:
-        if not folder.exists():
-            raise ValueError(
-                f"The provided folder does not seem to exist: "
-                f"{folder}"
-            )
-
     # Give plots a reasonable size when users decide to save them
     # as raster graphics:
     mpl.rcParams['figure.dpi'] = 300
@@ -95,6 +88,24 @@ def parse_args() -> argparse.Namespace:
         type=pathlib.Path,
     )
     parser.add_argument(
+        "--custom-metadata-plot",
+        type=pathlib.Path,
+        nargs='*',
+        help="Plot an ECDF for any metadata tag. "
+             "Use in conjunction with --custom-metadata-plot-tag "
+             "and --custom-metadata-plot-axis-label.",
+    )
+    parser.add_argument(
+        "--custom-metadata-plot-tag",
+        type=str,
+        nargs='*',
+    )
+    parser.add_argument(
+        "--custom-metadata-plot-axis-label",
+        type=str,
+        nargs='*',
+    )
+    parser.add_argument(
         "--cache-metadata",
         action="store_true",
         help="After reading the metadata of image files within a folder, "
@@ -132,16 +143,16 @@ def parse_args() -> argparse.Namespace:
         help="Label to use for each folder in the legend of each plot. "
              "Only used if --compare-folders is active.",
     )
+    parser.add_argument(
+        "--use-nan-if-metadata-missing",
+        action='store_true',
+        help="Use 'NaN' if a metadata tag cannot be found for a given image. "
+             "Use this if you know that some or most images do have the tag. "
+             "Otherwise, leave it off to avoid failing silently.",
+    )
+
     args = parser.parse_args()
-    if (
-        args.compare_folders
-        and len(args.folders) != len(args.folder_comparison_labels)
-    ):
-        raise ValueError(
-            "When using --compare-folders, "
-            "--folder-comparison-labels must have the same number of "
-            "arguments as there are folders."
-        )
+    validate_args(args)
     return args
 
 
@@ -155,6 +166,7 @@ def process_metadata_plots(args: argparse.Namespace):
         or args.isos_plot
         or args.light_values_plot
         or args.crop_factors_plot
+        or args.custom_metadata_plot
     ):
         return
 
@@ -206,6 +218,12 @@ def process_metadata_plots(args: argparse.Namespace):
 
     # print(metadata_collections[0][0].keys())
 
+    common_args = {
+        'metadata_lists': metadata_collections,
+        'metadata_labels': labels,
+        'nan_if_tag_missing': args.use_nan_if_metadata_missing,
+    }
+
     if args.hour_of_day_plot:
         plots.plot_photo_capture_hours_of_day(
             metadata_lists=metadata_collections,
@@ -214,74 +232,79 @@ def process_metadata_plots(args: argparse.Namespace):
         )
     if args.focal_lengths_plot:
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             tag="EXIF:FocalLength",
             xlabel="Focal length in mm",
             out_filename=args.focal_lengths_plot,
+            **common_args,
         )
     if args.focal_lengths_full_frame_plot:
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             # tag="EXIF:FocalLengthIn35mmFormat",
             tag="Composite:FocalLength35efl",
             xlabel="Focal length in mm (35 mm equiv.)",
             out_filename=args.focal_lengths_full_frame_plot,
+            **common_args,
         )
     if args.exposure_times_plot:
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             tag="EXIF:ExposureTime",
             xlabel="Exposure time in seconds",
             out_filename=args.exposure_times_plot,
             log_scale=True,
             x_tick_formatter=plots.fraction_formatter,
             x_tick_params={"labelrotation": 30},
+            **common_args,
         )
     if args.apertures_plot:
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             tag="EXIF:FNumber",
             xlabel="Aperture",
             out_filename=args.apertures_plot,
             log_scale=True,
             x_tick_formatter=plots.aperture_formatter,
             x_ticks=[1 * 2 ** i for i in range(0, 5, 1)],
+            **common_args,
         )
     if args.isos_plot:
         x_tick_formatter = ticker.ScalarFormatter()
         x_tick_formatter.set_scientific(False)
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             tag="EXIF:ISO",
             xlabel="ISO",
             out_filename=args.isos_plot,
             log_scale=True,
             x_tick_formatter=x_tick_formatter,
             x_ticks=[100 * 2 ** i for i in range(0, 9, 2)],
+            **common_args,
         )
     if args.light_values_plot:
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             tag="Composite:LightValue",
             # Def.: https://exiftool.org/TagNames/Composite.html
             # lv = 2 * log2(f_number) - log2(exp_time) - log2(iso/100)
             xlabel="Light Value (EV at ISO 100)",
             out_filename=args.light_values_plot,
+            **common_args,
         )
     if args.crop_factors_plot:
         plots.plot_metadata(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             tag="Composite:ScaleFactor35efl",
             xlabel="Scale factor (compared to 35 mm film)",
             out_filename=args.crop_factors_plot,
+            **common_args,
         )
+    if args.custom_metadata_plot:
+        for out_file, tag, xlabel in zip(
+            args.custom_metadata_plot,
+            args.custom_metadata_plot_tag,
+            args.custom_metadata_plot_axis_label
+        ):
+            plots.plot_metadata(
+                tag=tag,
+                xlabel=xlabel,
+                out_filename=out_file,
+                **common_args,
+            )
 
 
 def process_time_based_plots(args: argparse.Namespace):
@@ -345,3 +368,52 @@ def process_time_based_plots(args: argparse.Namespace):
             out_filename=args.sessions_plot,
             show_info_text=True,
         )
+
+
+def validate_args(args: argparse.Namespace):
+    if (
+        args.compare_folders
+        and len(args.folders) != len(args.folder_comparison_labels)
+    ):
+        raise ValueError(
+            "When using --compare-folders, "
+            "--folder-comparison-labels must have the same number of "
+            "arguments as there are folders."
+        )
+
+    if (
+        args.custom_metadata_plot
+        or args.custom_metadata_plot_tag
+        or args.custom_metadata_plot_axis_label
+    ):
+        if not (
+            args.custom_metadata_plot
+            and args.custom_metadata_plot_tag
+            and args.custom_metadata_plot_axis_label
+        ):
+            raise ValueError(
+                "The arguments --custom-metadata-plot, "
+                "--custom-metadata-plot-tag, and "
+                "--custom-metadata-plot-axis-label must be used "
+                "in conjunction."
+            )
+        if not (
+            len(args.custom_metadata_plot)
+            == len(args.custom_metadata_plot_tag)
+            == len(args.custom_metadata_plot_axis_label)
+        ):
+            raise ValueError(
+                "The arguments --custom-metadata-plot, "
+                "--custom-metadata-plot-tag, and "
+                "--custom-metadata-plot-axis-label must have the same "
+                "number of values."
+            )
+
+    for folder in args.folders:
+        if not folder.exists():
+            raise ValueError(
+                f"The provided folder does not seem to exist: "
+                f"{folder}"
+            )
+
+

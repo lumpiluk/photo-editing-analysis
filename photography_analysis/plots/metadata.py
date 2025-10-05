@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from photography_analysis.data import get_metadata
+from photography_analysis.data import get_metadata, try_get_tag
 
 
 def plot_metadata(
@@ -18,12 +18,14 @@ def plot_metadata(
     x_tick_formatter=None,
     x_ticks: list[float] | None = None,
     x_tick_params: dict | None = None,
+    nan_if_tag_missing=False,
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
     df = pd.DataFrame({
         metadata_label: pd.Series(sorted([
-            it[tag] for it in metadata_list
+            float(try_get_tag(it, tag, use_nan=nan_if_tag_missing))
+            for it in metadata_list
         ]))
         for metadata_label, metadata_list
         in zip(metadata_labels, metadata_lists)
@@ -60,7 +62,9 @@ def plot_photo_capture_hours_of_day(
             datetime.datetime.fromisoformat(
                 # EXIF dates look like 2025:09:27 18:23:00 instead of
                 # 2025-09-27 18:23:00, so we'll have to fix that:
-                it["EXIF:DateTimeOriginal"].replace(":", "-", count=2)
+                try_get_tag(it, "EXIF:DateTimeOriginal").replace(
+                    ":", "-", count=2
+                )
             )
             for it in metadata_list
         ]))
