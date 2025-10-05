@@ -12,10 +12,7 @@ from photography_analysis import (
 # Further ideas:
 # - keep-ratio over time (1 folder = 1 data point)
 # - photos per hour (by session)
-# - cropping (either based on Composite:ScaleFactor35efl or, e.g., image width)
 # - (Optionally) use Composite:SubSecModifyDate and CreateDate instead of stat
-# - Compare editing parameters of Lightroom users (XMP tags)
-# - --custom-metadata-plot, nargs='*'; --custom-metadata-plot-{tag,xaxis-label}
 # - optionally as many glob patterns as there are folders
 
 
