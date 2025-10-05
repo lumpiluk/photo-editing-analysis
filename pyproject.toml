@@ -1,5 +1,5 @@
 [project]
-name = "photo-editing-analysis"
+name = "photography_analysis"
 version = "0.1.0"
 description = ""
 authors = [
@@ -14,10 +14,11 @@ dependencies = [
 ]
 
 
+[project.scripts]
+analyse-photos = "photography_analysis.__main__:main"
+analyze-photos = "photography_analysis.__main__:main"
+
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-
-[tool.poetry]
-package-mode = false

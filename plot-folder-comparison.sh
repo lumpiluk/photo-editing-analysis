@@ -4,7 +4,7 @@ IFS=$'\n\t'
 
 out_folder=2025-02-14_vs_2025-05-17_vs_2025-09-20_edited
 mkdir -p "$out_folder"
-poetry run ./analysis.py \
+poetry run analyze-photos \
     --delta-plot "$out_folder/delta.pdf" \
     --sessions-plot "$out_folder/sessions.pdf" \
     --hour-of-day-plot "$out_folder/hour-of-day.pdf" \
