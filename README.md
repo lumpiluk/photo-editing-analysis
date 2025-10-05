@@ -48,4 +48,22 @@ analyze-photos \
     /path/to/images/2025-09-20 /path/to/images/2025-10-*
 ```
 
+In this example, I include my photos from several folders; one from September in 2025 and all from October.
+Each of these folders is structured as follows:
+```
+/path/to/images/some-folder/
+    converted_dt/
+        image-001.jpg
+        image-005.jpg
+        image-007.jpg
+        ...
+    raw-file-001.CR3
+    raw-file-002.CR3
+    raw-file-003.CR3
+    ...
+```
+
+So, to tell the analysis where to find my raw files and my edited files in each folder, I passed the arguments `--raw-files-glob` and `--edited-files-glob` accordingly.
+Be careful to use single quotation marks for these arguments, otherwise your shell might evaluate the asterisks prematurely!
+
 ![ECDF plot of delta times between raw and edited photos](examples/delta_raw-vs-jpg.png)
