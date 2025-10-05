@@ -4,7 +4,7 @@ IFS=$'\n\t'
 
 out_folder=2025-09-27
 mkdir -p "$out_folder"
-poetry run analyze-photos \
+analyze-photos \
     --delta-plot "$out_folder/delta.pdf" \
     --sessions-plot "$out_folder/sessions.pdf" \
     --hour-of-day-plot "$out_folder/hour-of-day.pdf" \

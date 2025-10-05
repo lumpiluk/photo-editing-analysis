@@ -13,13 +13,20 @@ This project allows you to analyze one or multiple of your photo folders and gen
 
 Prerequisites:
 - [Python](https://www.python.org/)
-- [Poetry](https://python-poetry.org/)
 - [Exiftool](https://exiftool.org/)
 
 Clone this repository, then:
 ```bash
-poetry install
-poetry run ./analysis.py --help
+# Create a virtual environment and activate it:
+python -m venv .venv
+source .venv/bin/activate
+
+# Install this package into the virtual environment:
+# (For development: `pip install -e .`)
+pip install .
+
+# Test it:
+analyze-photos -h
 ```
 
 ## Generating Plots
