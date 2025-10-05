@@ -1,4 +1,4 @@
-from typing import Generator, Iterable
+from typing import Iterable
 
 import pathlib
 

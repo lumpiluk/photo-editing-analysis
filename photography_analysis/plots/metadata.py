@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from photography_analysis.data import get_metadata, try_get_tag
+from photography_analysis.data import try_get_tag
 
 
 def plot_metadata(

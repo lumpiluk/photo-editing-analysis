@@ -79,5 +79,3 @@ def get_sessions_from_time_series(
                 yield session_duration
     # Final session:
     yield timestamps_sec[-1] - session_start
-
-

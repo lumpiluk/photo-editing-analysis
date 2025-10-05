@@ -415,5 +415,3 @@ def validate_args(args: argparse.Namespace):
                 f"The provided folder does not seem to exist: "
                 f"{folder}"
             )
-
-
