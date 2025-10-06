@@ -34,6 +34,11 @@ def get_metadata(
                 f"{files[0].parent}"
             )
             return [dict()]
+        except Exception:
+            raise ValueError(
+                f"Exiftool failed in this folder: "
+                f"{files[0].parent}"
+            )
         if write_cache and cache_file:
             with open(cache_file, 'w') as fp:
                 json.dump(metadata, fp, indent=2)

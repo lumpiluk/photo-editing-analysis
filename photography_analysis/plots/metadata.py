@@ -19,6 +19,7 @@ def plot_metadata(
     x_ticks: list[float] | None = None,
     x_tick_params: dict | None = None,
     nan_if_tag_missing=False,
+    figsize=(4, 3),
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
@@ -31,7 +32,7 @@ def plot_metadata(
         in zip(metadata_labels, metadata_lists)
     })
 
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=figsize)
     sns.ecdfplot(
         data=df,
         ax=ax,
@@ -54,6 +55,8 @@ def plot_photo_capture_hours_of_day(
     metadata_lists: list[list[dict]],
     metadata_labels: list[str],
     out_filename: pathlib.Path,
+    nan_if_tag_missing=False,
+    figsize=(4, 3),
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
@@ -62,7 +65,11 @@ def plot_photo_capture_hours_of_day(
             datetime.datetime.fromisoformat(
                 # EXIF dates look like 2025:09:27 18:23:00 instead of
                 # 2025-09-27 18:23:00, so we'll have to fix that:
-                try_get_tag(it, "EXIF:DateTimeOriginal").replace(
+                try_get_tag(
+                    it,
+                    "EXIF:DateTimeOriginal",
+                    use_nan=nan_if_tag_missing
+                ).replace(
                     ":", "-", count=2
                 )
             )
@@ -73,7 +80,7 @@ def plot_photo_capture_hours_of_day(
     })
     df_hours = df.apply(lambda col: col.dt.hour)
 
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=figsize)
     g = sns.displot(
         data=df_hours.melt(
             var_name="Category",

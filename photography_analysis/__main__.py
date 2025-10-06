@@ -147,6 +147,13 @@ def parse_args() -> argparse.Namespace:
              "Use this if you know that some or most images do have the tag. "
              "Otherwise, leave it off to avoid failing silently.",
     )
+    parser.add_argument(
+        "--figsize",
+        type=float,
+        default=(4, 3),
+        nargs=2,
+        help="Size of the figure in inches (Matplotlib units, sorry).",
+    )
 
     args = parser.parse_args()
     validate_args(args)
@@ -184,7 +191,7 @@ def process_metadata_plots(args: argparse.Namespace):
         for folder in args.folders:
             metadata_collections.append(
                 data.get_metadata(
-                    files=(file for file in folder.glob(
+                    files=list(file for file in folder.glob(
                         glob_pattern, case_sensitive=False
                     )),
                     cache_file=folder / cache_filename,
@@ -196,14 +203,14 @@ def process_metadata_plots(args: argparse.Namespace):
         metadata_edited = []
         for folder in args.folders:
             folder_metadata_raw = data.get_metadata(
-                files=(file for file in folder.glob(
+                files=list(file for file in folder.glob(
                     args.raw_files_glob, case_sensitive=False
                 )),
                 cache_file=folder / "metadata_raw.json",
                 write_cache=args.cache_metadata,
             )
             folder_metadata_edited = data.get_metadata(
-                files=(file for file in folder.glob(
+                files=list(file for file in folder.glob(
                     args.edited_files_glob, case_sensitive=False
                 )),
                 cache_file=folder / "metadata_edited.json",
@@ -219,13 +226,13 @@ def process_metadata_plots(args: argparse.Namespace):
         'metadata_lists': metadata_collections,
         'metadata_labels': labels,
         'nan_if_tag_missing': args.use_nan_if_metadata_missing,
+        'figsize': args.figsize,
     }
 
     if args.hour_of_day_plot:
         plots.plot_photo_capture_hours_of_day(
-            metadata_lists=metadata_collections,
-            metadata_labels=labels,
             out_filename=args.hour_of_day_plot,
+            **common_args,
         )
     if args.focal_lengths_plot:
         plots.plot_metadata(
@@ -320,6 +327,13 @@ def process_time_based_plots(args: argparse.Namespace):
             ]
             for folder in args.folders
         ]
+        for files_collection, folder in zip(
+            files_collections, args.folders
+        ):
+            if not files_collection:
+                raise ValueError(
+                    f"No files found in '{folder}'"
+                )
     else:  # compare raw vs. edited
         files_collections: list[list[pathlib.Path]] = [
             [
