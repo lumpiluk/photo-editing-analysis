@@ -1,4 +1,5 @@
 import argparse
+import logging
 import pathlib
 
 import matplotlib as mpl
@@ -9,6 +10,8 @@ from photography_analysis import (
     plots,
 )
 
+logger = logging.getLogger(__name__)
+
 # Further ideas:
 # - keep-ratio over time (1 folder = 1 data point)
 # - photos per hour (by session)
@@ -18,6 +21,8 @@ from photography_analysis import (
 
 def main():
     args = parse_args()
+
+    logging.basicConfig(level=args.log_level)
 
     # Give plots a reasonable size when users decide to save them
     # as raster graphics:
@@ -40,6 +45,14 @@ def parse_args() -> argparse.Namespace:
         help="Image folders to analyze. "
              "Assumes that each folder contains raw files and edited images, "
              "as defined by --raw-files-glob and --edited-files-glob.",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        dest="log_level",
+        action='store_const',
+        const=logging.INFO,
+        default=logging.WARNING,
+        help="Show some progress and status information on screen.",
     )
     parser.add_argument(
         "--delta-plot",
@@ -189,6 +202,7 @@ def process_metadata_plots(args: argparse.Namespace):
             glob_pattern = args.edited_files_glob
             cache_filename = "metadata_edited.json"
         for folder in args.folders:
+            logging.info(f"Getting metadata for {folder} ...")
             metadata_collections.append(
                 data.get_metadata(
                     files=list(file for file in folder.glob(
@@ -202,6 +216,7 @@ def process_metadata_plots(args: argparse.Namespace):
         metadata_raw = []
         metadata_edited = []
         for folder in args.folders:
+            logging.info(f"Getting metadata for {folder} ...")
             folder_metadata_raw = data.get_metadata(
                 files=list(file for file in folder.glob(
                     args.raw_files_glob, case_sensitive=False
