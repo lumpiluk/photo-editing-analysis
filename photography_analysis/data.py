@@ -25,6 +25,8 @@ def get_metadata(
     if cache_file and cache_file.exists():
         with open(cache_file, 'r') as fp:
             return json.load(fp)
+    if not files:
+        return []
     with exiftool.ExifToolHelper() as et:
         try:
             metadata = et.get_metadata(files, params=["-fast2"])
