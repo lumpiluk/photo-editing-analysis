@@ -60,21 +60,27 @@ def plot_photo_capture_hours_of_day(
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
-    df = pd.DataFrame({
-        metadata_label: pd.Series(sorted([
-            datetime.datetime.fromisoformat(
-                # EXIF dates look like 2025:09:27 18:23:00 instead of
-                # 2025-09-27 18:23:00, so we'll have to fix that:
-                try_get_tag(
-                    it,
-                    "EXIF:DateTimeOriginal",
-                    use_nan=nan_if_tag_missing
-                ).replace(
-                    ":", "-", count=2
-                )
+    def datetime_or_none(val) -> str | None:
+        if isinstance(val, str):  # i.e., not math.nan
+            return datetime.datetime.fromisoformat(
+                # EXIF dates look like '2025:09:27 18:23:00' instead of
+                # '2025-09-27 18:23:00', so we'll have to fix that:
+                val.replace(":", "-", count=2)
             )
-            for it in metadata_list
-        ]))
+        return None
+
+    df = pd.DataFrame({
+        metadata_label: pd.Series(sorted(
+            dt for dt in [
+                datetime_or_none(try_get_tag(
+                    metadata,
+                    "EXIF:DateTimeOriginal",
+                    use_nan=nan_if_tag_missing,
+                ))
+                for metadata in metadata_list
+            ]
+            if dt is not None
+        ))
         for metadata_label, metadata_list
         in zip(metadata_labels, metadata_lists)
     })
