@@ -60,13 +60,22 @@ def plot_photo_capture_hours_of_day(
 ):
     assert len(metadata_lists) == len(metadata_labels)
 
-    def datetime_or_none(val) -> str | None:
+    def datetime_or_none(val) -> datetime.datetime | None:
         if isinstance(val, str):  # i.e., not math.nan
-            return datetime.datetime.fromisoformat(
-                # EXIF dates look like '2025:09:27 18:23:00' instead of
-                # '2025-09-27 18:23:00', so we'll have to fix that:
-                val.replace(":", "-", count=2)
-            )
+            try:
+                return datetime.datetime.fromisoformat(
+                    # EXIF dates look like '2025:09:27 18:23:00' instead of
+                    # '2025-09-27 18:23:00', so we'll have to fix that:
+                    val.replace(":", "-", count=2)
+                )
+            except ValueError as e:
+                # Sometimes DateTimeOriginal has values like
+                # '1900:01:00 00:00:00'
+                if nan_if_tag_missing:
+                    return None
+                raise ValueError(
+                    f"{e} for value '{val}'"
+                )
         return None
 
     df = pd.DataFrame({
