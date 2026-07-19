@@ -2,23 +2,24 @@
 name = "photography_analysis"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Lukas Stratmann",email = "lukas@lukas-stratmann.com"}
-]
-readme = "README.md"
+authors = [{ name = "Lukas Stratmann", email = "lukas@lukas-stratmann.com" }]
 requires-python = ">=3.13"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 dependencies = [
     "pandas (>=2.3.2,<3.0.0)",
     "seaborn (>=0.13.2,<0.14.0)",
     "pyexiftool (>=0.5.6,<0.6.0)",
 ]
 
-
 [project.scripts]
 analyse-photos = "photography_analysis.__main__:main"
 analyze-photos = "photography_analysis.__main__:main"
 
-
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.11.28,<0.12.0"]
+build-backend = "uv_build"
