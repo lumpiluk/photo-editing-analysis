@@ -55,6 +55,11 @@ def parse_args() -> argparse.Namespace:
         help="Show some progress and status information on screen.",
     )
     parser.add_argument(
+        "--report",
+        type=pathlib.Path,
+        help="Generate a report PDF with this file name.",
+    )  # TODO
+    parser.add_argument(
         "--delta-plot",
         type=pathlib.Path,
         help="File name of the plot of time between "
