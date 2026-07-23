@@ -14,11 +14,15 @@ dependencies = [
     "pandas (>=2.3.2,<3.0.0)",
     "seaborn (>=0.13.2,<0.14.0)",
     "pyexiftool (>=0.5.6,<0.6.0)",
+    "dash[celery,diskcache]>=4.4.0",
+    "immichpy>=7.0.0",
+    "pydantic-settings>=2.14.2",
 ]
 
 [project.scripts]
 analyse-photos = "photography_analysis.__main__:main"
 analyze-photos = "photography_analysis.__main__:main"
+photo-dashboard = "photography_analysis.dashboard.app:run_dashboard"
 
 [build-system]
 requires = ["uv_build>=0.11.28,<0.12.0"]
