@@ -2,7 +2,9 @@ import pathlib
 
 import dash
 import dash_ag_grid as dag
+import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from dash import html, dcc, callback, Input, Output, State
 
 from photography_analysis.dashboard.config import settings
@@ -11,12 +13,42 @@ dash.register_page(__name__, path="/people")
 
 
 def load_people():
-    path = pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv"
-    if not path.exists():
-        return pd.DataFrame(columns=["id", "name", "num_assets"])
-    df = pd.read_csv(path)
+    ranges_path = pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv"
+    photos_path = pathlib.Path(settings.data_cache_dir) / "person-photo-dates.csv"
+
+    if not ranges_path.exists():
+        return pd.DataFrame(columns=["id", "name", "num_assets", "last", "num_days"])
+
+    df = pd.read_csv(ranges_path)
     df["last"] = pd.to_datetime(df["last"], format="ISO8601").dt.strftime("%Y-%m-%d")
-    return df[["id", "name", "num_assets", "last"]]
+
+    photos = pd.read_csv(photos_path)
+    photos["date"] = pd.to_datetime(photos["date"], format="ISO8601").dt.normalize()
+    num_days = (
+        photos.groupby("person_id")["date"]
+        .nunique()
+        .rename("num_days")
+        .reset_index()
+        .rename(columns={"person_id": "id"})
+    )
+
+    df = df.merge(num_days, on="id", how="left")
+    df["num_days"] = df["num_days"].fillna(0).astype(int)
+
+    return df[["id", "name", "num_assets", "last", "num_days"]]
+
+
+def build_num_days_ecdf(people_df):
+    values = np.sort(people_df["num_days"].values)
+    y = np.arange(1, len(values) + 1) / len(values)
+
+    fig = go.Figure(go.Scatter(x=values, y=y, mode="lines"))
+    fig.update_layout(
+        xaxis_title="Days photographed",
+        yaxis_title="Fraction of people ≤ x",
+        height=350,
+    )
+    return fig
 
 
 layout = html.Div([
@@ -34,8 +66,9 @@ layout = html.Div([
         columnDefs=[
             {"headerName": "", "checkboxSelection": True, "width": 50},
             {"field": "name", "headerName": "Name", "flex": 1},
-            {"field": "num_assets", "headerName": "Photos", "width": 120},
             {"field": "last", "headerName": "Most recent photo", "width": 160, "sort": "desc"},
+            {"field": "num_assets", "headerName": "Photos", "width": 120},
+            {"field": "num_days", "headerName": "Days photographed", "width": 150},
             # once thumbnails are available:
             # {"field": "thumbnail", "headerName": "", "cellRenderer": "ImageRenderer", "width": 80},
         ],
@@ -51,6 +84,9 @@ layout = html.Div([
     ),
 
     html.Button("View people", id="view-people-btn", style={"marginTop": "10px"}),
+
+    html.H2("Distribution of days photographed"),
+    dcc.Graph(id="num-days-ecdf", figure=build_num_days_ecdf(load_people())),
 ])
 
 
@@ -78,6 +114,14 @@ def go_to_detail(n_clicks, selected_rows):
 
     ids = ",".join(str(row["id"]) for row in selected_rows)
     return "/people-detail", f"?ids={ids}"
+
+
+@callback(
+    Output("num-days-ecdf", "figure"),
+    Input("data-version", "data"),
+)
+def update_num_days_ecdf(_version):
+    return build_num_days_ecdf(load_people())
 
 
 # TODO
