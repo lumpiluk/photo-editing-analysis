@@ -11,12 +11,13 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "pandas (>=2.3.2,<3.0.0)",
+    "pandas>=2.3.2,<3.0.7",
     "seaborn (>=0.13.2,<0.14.0)",
     "pyexiftool (>=0.5.6,<0.6.0)",
     "dash[celery,diskcache]>=4.4.0",
     "immichpy>=7.0.0",
     "pydantic-settings>=2.14.2",
+    "dash-ag-grid>=35.3.0",
 ]
 
 [project.scripts]

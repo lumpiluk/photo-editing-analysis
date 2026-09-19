@@ -1,0 +1,138 @@
+import pathlib
+from urllib.parse import parse_qs
+
+import dash
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from dash import html, dcc, callback, Input, Output
+
+from photography_analysis.dashboard.config import settings
+
+dash.register_page(__name__, path="/people-detail")
+
+layout = html.Div([
+    html.Div(id="detail-content"),
+])
+
+
+def load_ranges():
+    path = pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv"
+    df = pd.read_csv(path)
+    df["last"] = pd.to_datetime(df["last"], format="ISO8601")
+    return df
+
+
+def load_photos():
+    path = pathlib.Path(settings.data_cache_dir) / "person-photo-dates.csv"
+    df = pd.read_csv(path)
+    df["date"] = pd.to_datetime(df["date"], format="ISO8601")
+    return df
+
+
+def compute_gaps(photos, person_id):
+    days = (
+        photos.loc[photos["person_id"] == person_id, "date"]
+        .dt.normalize()
+        .drop_duplicates()
+        .sort_values()
+    )
+    return days.diff().dt.days.dropna().values
+
+
+def build_heatmap_figure(photos, ranges, person_ids, name_by_id):
+    sub_photos = photos[photos["person_id"].isin(person_ids)]
+    sub_photos = sub_photos.assign(month=sub_photos["date"].dt.to_period("M"))
+
+    counts = (
+        sub_photos.groupby(["person_id", "month"]).size().rename("n").reset_index()
+    )
+
+    full_months = pd.period_range(counts["month"].min(), counts["month"].max(), freq="M")
+    pivot = counts.pivot(index="person_id", columns="month", values="n").fillna(0)
+    pivot = pivot.reindex(columns=full_months, fill_value=0)
+    pivot = pivot.reindex(person_ids, fill_value=0)
+
+    labels = [name_by_id.get(pid) or pid for pid in person_ids]
+    month_labels = pivot.columns.to_timestamp()
+
+    fig = go.Figure(go.Heatmap(
+        z=np.log1p(pivot.values),
+        x=month_labels,
+        y=labels,
+        customdata=pivot.values,
+        hovertemplate="%{y}<br>%{x|%Y-%m}<br>%{customdata:.0f} photos<extra></extra>",
+        colorscale="Viridis",
+        xgap=1,
+        ygap=1,
+        showscale=False,
+    ))
+    fig.update_layout(
+        height=max(200, len(person_ids) * 60),
+        margin=dict(l=120, r=20, t=20, b=40),
+    )
+    return fig
+
+
+def build_ecdf_figure(photos, person_ids, name_by_id):
+    fig = go.Figure()
+    for pid in person_ids:
+        gaps = compute_gaps(photos, pid)
+        if len(gaps) == 0:
+            continue
+        x = np.sort(gaps)
+        y = np.arange(1, len(x) + 1) / len(x)
+        fig.add_trace(go.Scatter(
+            x=x, y=y, mode="lines", name=name_by_id.get(pid) or pid,
+        ))
+
+    fig.update_layout(
+        xaxis_title="Gap between photos (days)",
+        yaxis_title="Fraction of gaps ≤ x",
+        height=400,
+    )
+    return fig
+
+
+def build_totals_table(ranges, ids, name_by_id):
+    sub = ranges[ranges["id"].isin(ids)].set_index("id").loc[ids]  # preserve selection order
+    rows = [
+        html.Tr([html.Td(name_by_id.get(pid) or pid), html.Td(int(sub.loc[pid, "num_assets"]))])
+        for pid in ids
+    ]
+    return html.Table([
+        html.Thead(html.Tr([html.Th("Name"), html.Th("Total photos")])),
+        html.Tbody(rows),
+    ])
+
+
+@callback(
+    Output("detail-content", "children"),
+    Input("_pages_location", "search"),
+)
+def render_detail(search):
+    if not search:
+        return html.Div("No people selected.")
+
+    params = parse_qs(search.lstrip("?"))
+    ids = params.get("ids", [""])[0].split(",")
+    ids = [i for i in ids if i]
+
+    if not ids:
+        return html.Div("No people selected.")
+
+    ranges = load_ranges()
+    photos = load_photos()
+
+    name_by_id = ranges.set_index("id")["name"].to_dict()
+
+    return html.Div([
+        html.H2("Total photos"),
+        build_totals_table(ranges, ids, name_by_id),
+
+        html.H2("Photos per month"),
+        dcc.Graph(figure=build_heatmap_figure(photos, ranges, ids, name_by_id)),
+
+        html.H2("Gap between photos (ECDF)"),
+        dcc.Graph(figure=build_ecdf_figure(photos, ids, name_by_id)),
+    ])
