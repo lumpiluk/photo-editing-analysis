@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from dash import html, dcc, callback, Input, Output
+import dash_bootstrap_components as dbc
 
 from photography_analysis.dashboard.config import settings
 
@@ -90,18 +91,31 @@ def build_ecdf_figure(photos, person_ids, name_by_id):
         xaxis_title="Gap between photos (days)",
         yaxis_title="Fraction of gaps ≤ x",
         height=400,
+        margin=dict(b=120),  # bottom margin for label + legend
+        legend={
+            "yanchor": "top",
+            "orientation": "h",
+            "xanchor": "left",
+            "y": -.25
+        },
     )
     return fig
 
 
-def build_totals_table(ranges, ids, name_by_id):
-    sub = ranges[ranges["id"].isin(ids)].set_index("id").loc[ids]  # preserve selection order
+def build_totals_table(ranges, ids, name_by_id, num_days_by_id):
+    sub = ranges[ranges["id"].isin(ids)].set_index("id").loc[ids]
     rows = [
-        html.Tr([html.Td(name_by_id.get(pid) or pid), html.Td(int(sub.loc[pid, "num_assets"]))])
+        html.Tr([
+            html.Td(name_by_id.get(pid) or pid),
+            html.Td(int(sub.loc[pid, "num_assets"])),
+            html.Td(int(num_days_by_id.get(pid, 0))),
+        ])
         for pid in ids
     ]
     return html.Table([
-        html.Thead(html.Tr([html.Th("Name"), html.Th("Total photos")])),
+        html.Thead(html.Tr([
+            html.Th("Name"), html.Th("Total photos"), html.Th("Days photographed"),
+        ])),
         html.Tbody(rows),
     ])
 
@@ -126,13 +140,27 @@ def render_detail(search):
 
     name_by_id = ranges.set_index("id")["name"].to_dict()
 
+    num_days = (
+        photos[photos["person_id"].isin(ids)]
+        .assign(date=lambda d: d["date"].dt.normalize())
+        .groupby("person_id")["date"]
+        .nunique()
+    )
+    num_days_by_id = num_days.to_dict()
+
     return html.Div([
-        html.H2("Total photos"),
-        build_totals_table(ranges, ids, name_by_id),
+        dbc.Container([
+            html.H2("Total photos"),
+            build_totals_table(ranges, ids, name_by_id, num_days_by_id),
 
-        html.H2("Photos per month"),
-        dcc.Graph(figure=build_heatmap_figure(photos, ranges, ids, name_by_id)),
+            html.H2("Photos per month"),
+            dbc.Container(
+                dcc.Graph(figure=build_heatmap_figure(photos, ranges, ids, name_by_id)),
+            ),
 
-        html.H2("Gap between photos (ECDF)"),
-        dcc.Graph(figure=build_ecdf_figure(photos, ids, name_by_id)),
+            html.H2("Gap between photos (ECDF)"),
+            dbc.Container(
+                dcc.Graph(figure=build_ecdf_figure(photos, ids, name_by_id)),
+            ),
+        ]),
     ])

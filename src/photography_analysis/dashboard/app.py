@@ -6,6 +6,7 @@ from dash import (
     html,
     dcc,
 )
+import dash_bootstrap_components as dbc
 
 from photography_analysis.dashboard.config import settings
 
@@ -29,7 +30,9 @@ else:
 app = Dash(
     __name__,
     use_pages=True,
+    suppress_callback_exceptions=True,  # because not all elements exist on events-detail page on startup
     background_callback_manager=background_callback_manager,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
 
 app.layout = html.Div([

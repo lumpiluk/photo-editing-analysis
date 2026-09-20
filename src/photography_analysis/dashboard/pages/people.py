@@ -2,6 +2,7 @@ import pathlib
 
 import dash
 import dash_ag_grid as dag
+import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -51,7 +52,20 @@ def build_num_days_ecdf(people_df):
     return fig
 
 
-layout = html.Div([
+def build_num_assets_ecdf(people_df):
+    values = np.sort(people_df["num_assets"].values)
+    y = np.arange(1, len(values) + 1) / len(values)
+
+    fig = go.Figure(go.Scatter(x=values, y=y, mode="lines"))
+    fig.update_layout(
+        xaxis_title="Number of photos",
+        yaxis_title="Fraction of people ≤ x",
+        height=350,
+    )
+    return fig
+
+
+layout = html.Div(dbc.Container([
     html.H1("People"),
 
     dcc.Input(
@@ -64,6 +78,15 @@ layout = html.Div([
     dag.AgGrid(
         id="people-grid",
         columnDefs=[
+            {
+                "headerName": "#",
+                "valueGetter": {"function": "params.node.rowIndex + 1"},
+                "width": 50,
+                # "columnSizing": "autoSize",
+                "sortable": False,
+                "pinned": "left",
+                "flex": 0,
+            },
             {"headerName": "", "checkboxSelection": True, "width": 50},
             {"field": "name", "headerName": "Name", "flex": 1},
             {"field": "last", "headerName": "Most recent photo", "width": 160, "sort": "desc"},
@@ -87,7 +110,10 @@ layout = html.Div([
 
     html.H2("Distribution of days photographed"),
     dcc.Graph(id="num-days-ecdf", figure=build_num_days_ecdf(load_people())),
-])
+
+    html.H2("Distribution of photo counts"),
+    dcc.Graph(id="num-assets-ecdf", figure=build_num_assets_ecdf(load_people())),
+]))
 
 
 @callback(
@@ -102,8 +128,8 @@ def filter_people(search_value, current_options):
 
 
 @callback(
-    Output("_pages_location", "pathname"),
-    Output("_pages_location", "search"),
+    Output("_pages_location", "pathname", allow_duplicate=True),
+    Output("_pages_location", "search", allow_duplicate=True),
     Input("view-people-btn", "n_clicks"),
     State("people-grid", "selectedRows"),
     prevent_initial_call=True,
@@ -122,6 +148,14 @@ def go_to_detail(n_clicks, selected_rows):
 )
 def update_num_days_ecdf(_version):
     return build_num_days_ecdf(load_people())
+
+
+@callback(
+    Output("num-assets-ecdf", "figure"),
+    Input("data-version", "data"),
+)
+def update_num_assets_ecdf(_version):
+    return build_num_assets_ecdf(load_people())
 
 
 # TODO
