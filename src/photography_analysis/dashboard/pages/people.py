@@ -119,9 +119,10 @@ layout = html.Div(dbc.Container([
 @callback(
     Output("people-grid", "dashGridOptions"),
     Input("people-search", "value"),
+    Input("global-data-version", "data"),
     State("people-grid", "dashGridOptions"),
 )
-def filter_people(search_value, current_options):
+def filter_people(search_value, current_options, _version):
     current_options = dict(current_options or {})
     current_options["quickFilterText"] = search_value or ""
     return current_options
@@ -144,7 +145,7 @@ def go_to_detail(n_clicks, selected_rows):
 
 @callback(
     Output("num-days-ecdf", "figure"),
-    Input("data-version", "data"),
+    Input("global-data-version", "data"),
 )
 def update_num_days_ecdf(_version):
     return build_num_days_ecdf(load_people())
@@ -152,7 +153,7 @@ def update_num_days_ecdf(_version):
 
 @callback(
     Output("num-assets-ecdf", "figure"),
-    Input("data-version", "data"),
+    Input("global-data-version", "data"),
 )
 def update_num_assets_ecdf(_version):
     return build_num_assets_ecdf(load_people())
@@ -160,5 +161,3 @@ def update_num_assets_ecdf(_version):
 
 # TODO
 # - refresh peoples names (and thumbnails)
-# - select subset of people
-# - link from person name to person page

@@ -16,7 +16,6 @@ dash.register_page(__name__)
 layout = html.Div([
     dcc.Store(id="data-version"),
     html.H1("People Heatmap"),
-    html.Button("Refresh overview data", id="overview-refresh-btn"),
     dcc.DatePickerRange(id="date-range-picker"),
     html.Div(id="overview-refresh-status"),
     dcc.Graph(id="heatmap-graph"),
@@ -24,25 +23,12 @@ layout = html.Div([
 
 
 @callback(
-    Output("overview-refresh-status", "children"),
-    Output("data-version", "data"),
-    Input("overview-refresh-btn", "n_clicks"),
-    background=True,
-    on_error=lambda e: f"Refresh failed.",
-    prevent_initial_call=True,
-)
-def refresh_overview(n_clicks):
-    fetch_and_save_immich_data()
-    return f"Overview data refreshed", n_clicks  # one for each Output
-
-
-@callback(
     Output("heatmap-graph", "figure"),
     Input("date-range-picker", "start_date"),
     Input("date-range-picker", "end_date"),
-    Input("data-version", "data"),
+    Input("global-data-version", "data"),
 )
-def update_heatmap(start_date: str, end_date: str, data):
+def update_heatmap(start_date: str, end_date: str, _version):
     fig = plot_heatmap_plotly(
         person_photo_dates_path=(
             pathlib.Path(settings.data_cache_dir)

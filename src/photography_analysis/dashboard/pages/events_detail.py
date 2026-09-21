@@ -268,8 +268,9 @@ def build_all_metadata_figures(event_dirs):
 @callback(
     Output("events-detail-content", "children"),
     Input("events-detail-url", "search"),
+    Input("global-data-version", "data"),
 )
-def render_events_detail(search):
+def render_events_detail(search, _version):
     if not search:
         return html.Div("No events selected.")
 
@@ -344,9 +345,10 @@ def render_events_detail(search):
     Output("isos-graph", "figure"),
     Output("light-values-graph", "figure"),
     Input("events-detail-url", "search"),
+    Input("global-data-version", "data"),
     background=True,
 )
-def render_metadata_plots(search):
+def render_metadata_plots(search, _version):
     params = parse_qs((search or "").lstrip("?"))
     paths = [unquote(p) for p in params.get("paths", [""])[0].split(",") if p]
     event_dirs = [resolve_event_dir(p) for p in paths]
