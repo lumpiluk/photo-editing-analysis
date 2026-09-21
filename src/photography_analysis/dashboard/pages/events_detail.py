@@ -1,3 +1,4 @@
+from datetime import datetime
 import pathlib
 from urllib.parse import parse_qs, unquote
 
@@ -119,12 +120,12 @@ def build_delta_ecdf(raw_mtimes, edited_mtimes):
         mtimes = sorted(mtimes)
         if len(mtimes) < 2:
             continue
-        gaps = np.diff(mtimes) / 60  # seconds -> minutes
+        gaps = np.diff(mtimes)  # seconds, matching time_between_photos.py
         fig.add_trace(ecdf_trace(gaps, label))
     fig.update_layout(
-        xaxis_title="Time between consecutive photos (minutes)",
+        xaxis_title="Time between photos (seconds)",
         yaxis_title="Fraction of gaps ≤ x",
-        xaxis_type="log",
+        xaxis=dict(range=[0, 300]),  # matches CLI's ax.set_xlim(0, 300)
     )
     return fig
 
@@ -148,33 +149,65 @@ def build_sessions_ecdf(raw_mtimes, edited_mtimes):
     return fig
 
 
-# --- raw-vs-edited: exiftool metadata based, cached, potentially slow ---
+# --- shared metadata fetch: one exiftool call per raw/edited, reused by all plots below ---
 
-def build_exposure_time_ecdf(event_dirs):
+def parse_capture_hour(val):
+    if not isinstance(val, str):
+        return None
+    try:
+        dt = datetime.strptime(val.replace(":", "-", 2), "%Y-%m-%d %H:%M:%S")
+        return dt.hour
+    except ValueError:
+        return None  # e.g. malformed dates like '1900:01:00 00:00:00'
+
+
+def get_metadata_locked(files, cache_file, write_cache=True):
+    if cache_file and cache_file.exists():
+        return data.get_metadata(files=files, cache_file=cache_file, write_cache=write_cache)
+
+    lock_file = cache_file.with_suffix(cache_file.suffix + ".lock")
+    if lock_file.exists():
+        raise RuntimeError(f"Metadata parsing already in progress for {cache_file}")
+
+    lock_file.touch()
+    try:
+        return data.get_metadata(files=files, cache_file=cache_file, write_cache=write_cache)
+    finally:
+        lock_file.unlink(missing_ok=True)
+
+
+def fetch_all_metadata(event_dirs):
+    raw_files = gather_files(event_dirs, RAW_GLOB)
+    edited_files = gather_files(event_dirs, EDITED_GLOB)
+
+    # single cache file per event dir, shared across all metadata-based plots
+    raw_meta = []
+    edited_meta = []
+    for d in event_dirs:
+        raw_meta += get_metadata_locked(
+            files=list(d.glob(RAW_GLOB, case_sensitive=False)),
+            cache_file=d / "metadata_raw.json",
+        )
+        edited_meta += get_metadata_locked(
+            files=list(d.glob(EDITED_GLOB, case_sensitive=False)),
+            cache_file=d / "metadata_edited.json",
+        )
+    return raw_meta, edited_meta
+
+
+def build_metadata_ecdf(raw_meta, edited_meta, tag, xlabel, log_scale=False,
+                         tickvals=None, ticktext=None):
     fig = go.Figure()
-    for glob_pattern, cache_name, label in [
-        (RAW_GLOB, "metadata_raw.json", "Raw"),
-        (EDITED_GLOB, "metadata_edited.json", "Edited"),
-    ]:
-        values = []
-        for d in event_dirs:
-            files = list(d.glob(glob_pattern, case_sensitive=False))
-            metadata = data.get_metadata(
-                files=files,
-                cache_file=d / cache_name,
-                write_cache=True,
-            )
-            for m in metadata:
-                if "EXIF:ExposureTime" in m:
-                    values.append(m["EXIF:ExposureTime"])
+    for meta, label in [(raw_meta, "Raw"), (edited_meta, "Edited")]:
+        values = [m[tag] for m in meta if tag in m]
         if values:
             fig.add_trace(ecdf_trace(values, label))
 
-    fig.update_layout(
-        xaxis_title="Exposure time (s)",
-        yaxis_title="Fraction of photos ≤ x",
-        xaxis_type="log",
-    )
+    fig.update_layout(xaxis_title=xlabel, yaxis_title="Fraction of photos ≤ x")
+    if log_scale:
+        fig.update_xaxes(type="log")
+    if tickvals:
+        fig.update_xaxes(tickmode="array", tickvals=tickvals, ticktext=ticktext or [str(t) for t in tickvals])
     return fig
 
 
@@ -183,6 +216,51 @@ def metadata_cache_exists(event_dirs) -> bool:
         (d / "metadata_raw.json").exists() and (d / "metadata_edited.json").exists()
         for d in event_dirs
     )
+
+
+def build_hour_of_day_histogram(raw_meta, edited_meta):
+    fig = go.Figure()
+    for meta, label in [(raw_meta, "Raw"), (edited_meta, "Edited")]:
+        hours = [
+            h for h in (
+                parse_capture_hour(m.get("EXIF:DateTimeOriginal"))
+                for m in meta
+            ) if h is not None
+        ]
+        if hours:
+            fig.add_trace(go.Histogram(x=hours, name=label, opacity=0.6,
+                                        xbins=dict(start=-0.5, end=23.5, size=1)))
+    fig.update_layout(barmode="overlay", xaxis_title="Hour of day",
+                       yaxis_title="Number of photos", xaxis=dict(tick0=0, dtick=2))
+    return fig
+
+
+# --- assemble all metadata-based figures from one fetch ---
+
+def build_all_metadata_figures(event_dirs):
+    raw_meta, edited_meta = fetch_all_metadata(event_dirs)
+
+    return {
+        "hour_of_day": build_hour_of_day_histogram(raw_meta, edited_meta),
+        "focal_lengths": build_metadata_ecdf(
+            raw_meta, edited_meta, "EXIF:FocalLength", "Focal length (mm)",
+        ),
+        "exposure_times": build_metadata_ecdf(
+            raw_meta, edited_meta, "EXIF:ExposureTime", "Exposure time (s)", log_scale=True,
+        ),
+        "apertures": build_metadata_ecdf(
+            raw_meta, edited_meta, "EXIF:FNumber", "Aperture", log_scale=True,
+            tickvals=[1 * 2 ** i for i in range(5)],
+            ticktext=[f"1/{v:g}" for v in [1 * 2 ** i for i in range(5)]],
+        ),
+        "isos": build_metadata_ecdf(
+            raw_meta, edited_meta, "EXIF:ISO", "ISO", log_scale=True,
+            tickvals=[100 * 2 ** i for i in range(0, 9, 2)],
+        ),
+        "light_values": build_metadata_ecdf(
+            raw_meta, edited_meta, "Composite:LightValue", "Light Value (EV @ ISO 100)",
+        ),
+    }
 
 
 # --- page ---
@@ -232,26 +310,53 @@ def render_events_detail(search):
         html.H2("Session durations: raw vs. edited"),
         dcc.Graph(figure=build_sessions_ecdf(raw_mtimes, edited_mtimes)),
 
-        html.H2("Exposure times: raw vs. edited"),
         html.P(
             "Metadata cache not found — reading EXIF data may take a few "
             "minutes on first load." if not cache_ready else "",
             style={"color": "orange"},
         ),
-        dcc.Loading(
-            type="circle",
-            children=dcc.Graph(id="exposure-ecdf-graph"),
-        ),
+
+        html.H2("Photo capture hour of day"),
+        dcc.Loading(type="circle", children=dcc.Graph(id="hour-of-day-graph")),
+
+        html.H2("Focal lengths"),
+        dcc.Loading(type="circle", children=dcc.Graph(id="focal-lengths-graph")),
+
+        html.H2("Exposure times"),
+        dcc.Loading(type="circle", children=dcc.Graph(id="exposure-times-graph")),
+
+        html.H2("Apertures"),
+        dcc.Loading(type="circle", children=dcc.Graph(id="apertures-graph")),
+
+        html.H2("ISOs"),
+        dcc.Loading(type="circle", children=dcc.Graph(id="isos-graph")),
+
+        html.H2("Light values"),
+        dcc.Loading(type="circle", children=dcc.Graph(id="light-values-graph")),
     ])
 
 
 @callback(
-    Output("exposure-ecdf-graph", "figure"),
+    Output("hour-of-day-graph", "figure"),
+    Output("focal-lengths-graph", "figure"),
+    Output("exposure-times-graph", "figure"),
+    Output("apertures-graph", "figure"),
+    Output("isos-graph", "figure"),
+    Output("light-values-graph", "figure"),
     Input("events-detail-url", "search"),
     background=True,
 )
-def render_exposure_ecdf(search):
+def render_metadata_plots(search):
     params = parse_qs((search or "").lstrip("?"))
     paths = [unquote(p) for p in params.get("paths", [""])[0].split(",") if p]
     event_dirs = [resolve_event_dir(p) for p in paths]
-    return build_exposure_time_ecdf(event_dirs)
+
+    figs = build_all_metadata_figures(event_dirs)
+    return (
+        figs["hour_of_day"],
+        figs["focal_lengths"],
+        figs["exposure_times"],
+        figs["apertures"],
+        figs["isos"],
+        figs["light_values"],
+    )
