@@ -68,15 +68,9 @@ def build_num_assets_ecdf(people_df):
 layout = html.Div(dbc.Container([
     html.H1("People"),
     html.Nav([
-        dcc.Link("Heatmap (slow)", href="/people-heatmap"),
+        dcc.Link("Photos per Month Heatmap (slow)", href="/people-heatmap"),
+        dcc.Link("People Network (slow)", href="/people-network"),
     ], style={"display": "flex", "gap": "1rem"}),
-
-    dcc.Input(
-        id="people-search",
-        type="text",
-        placeholder="Search people...",
-        style={"marginBottom": "10px", "width": "300px"},
-    ),
 
     html.Div(
         dag.AgGrid(
@@ -99,10 +93,31 @@ layout = html.Div(dbc.Container([
                     "sortable": False,
                     "filter": False,
                 },
-                {"field": "name", "headerName": "Name", "flex": 1},
-                {"field": "last", "headerName": "Most recent photo", "width": 160, "sort": "desc"},
-                {"field": "num_assets", "headerName": "Photos", "width": 120},
-                {"field": "num_days", "headerName": "Days photographed", "width": 150},
+                {
+                    "field": "name",
+                    "headerName": "Name",
+                    "flex": 1,
+                    "filter": True,
+                },
+                {
+                    "field": "last",
+                    "headerName": "Most recent photo",
+                    "width": 160,
+                    "sort": "desc",
+                    "filter": True,
+                },
+                {
+                    "field": "num_assets",
+                    "headerName": "Photos",
+                    "width": 120,
+                    "filter": True,
+                },
+                {
+                    "field": "num_days",
+                    "headerName": "Days photographed",
+                    "width": 150,
+                    "filter": True,
+                },
                 # once thumbnails are available:
                 # {"field": "thumbnail", "headerName": "", "cellRenderer": "ImageRenderer", "width": 80},
             ],
@@ -128,18 +143,6 @@ layout = html.Div(dbc.Container([
     html.H2("Distribution of photo counts"),
     dcc.Graph(id="num-assets-ecdf", figure=build_num_assets_ecdf(load_people())),
 ]))
-
-
-@callback(
-    Output("people-grid", "dashGridOptions"),
-    Input("people-search", "value"),
-    Input("global-data-version", "data"),
-    State("people-grid", "dashGridOptions"),
-)
-def filter_people(search_value, current_options, _version):
-    current_options = dict(current_options or {})
-    current_options["quickFilterText"] = search_value or ""
-    return current_options
 
 
 @callback(

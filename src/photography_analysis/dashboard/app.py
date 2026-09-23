@@ -12,10 +12,13 @@ from dash import (
     Output,
 )
 import dash_bootstrap_components as dbc
+import dash_cytoscape as cyto
 
 from photography_analysis.dashboard.config import settings
 from photography_analysis.dashboard.data_fetcher import fetch_and_save_immich_data
 
+
+cyto.load_extra_layouts()
 
 if settings.redis_url:
     # Use Redis & Celery if REDIS_URL set as an env variable
