@@ -1,0 +1,68 @@
+# Based on https://github.com/astral-sh/uv-docker-example/blob/main/compose.yml (commit 2e459bb)
+services:
+  init-cache:
+    image: alpine:latest
+    user: "0:0"
+    command: chown -R 1000:1000 /cache
+    volumes:
+      - dash-cache:/cache
+    restart: "no"
+
+  web:
+    # Build the image from the Dockerfile in the current directory
+    build: .
+
+    depends_on:
+      init-cache:
+        condition: service_completed_successfully
+
+    # Host the FastAPI application on port 8000
+    ports:
+      - "8050:8050"
+
+    env_file:
+      - .env
+    environment:
+      # Include development dependencies when working locally
+      - UV_NO_DEV=0
+      - DASH_HOST=0.0.0.0
+      - DASH_PORT=8050
+      - DASH_DEBUG=False
+      - DASH_CACHE=/cache
+      - UV_CACHE_DIR=/cache/uv
+      - MPLCONFIGDIR=/cache/matplotlib
+      # override .env:
+      - photos_dir=/pictures
+      - data_cache_dir=/cache
+
+    volumes:
+      - type: bind
+        source: /mnt/nfs/pictures
+        target: /pictures
+        read_only: false  # must be writable for folder-level metadata cache
+      - dash-cache:/cache  # used for disk cache if redis is not set up
+
+    # Run as root during development so the environment is mutable
+    # Alternatively, you could set `UV_PROJECT_ENVIRONMENT` to a path owned by the non-root user
+    # user: root
+    user: 1000:1000
+
+    develop:
+      # Create a `watch` configuration to update the app
+      # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
+      watch:
+        # Sync the working directory with the `/app` directory in the container
+        - action: sync
+          path: .
+          target: /app
+          # Exclude the project virtual environment — it could be for a
+          # different platform in the container
+          ignore:
+            - .venv/
+
+        # Rebuild the image if dependencies change by checking uv.lock
+        - action: rebuild
+          path: ./uv.lock
+
+volumes:
+  dash-cache:

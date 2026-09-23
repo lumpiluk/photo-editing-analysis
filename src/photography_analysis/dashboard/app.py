@@ -1,4 +1,5 @@
 import logging
+import os
 
 import dash
 from dash import (
@@ -32,7 +33,7 @@ if settings.redis_url:
 else:
     # Diskcache for non-production apps when developing locally
     import diskcache
-    cache = diskcache.Cache("./cache")
+    cache = diskcache.Cache(os.environ.get("DASH_CACHE", "./cache"))
     background_callback_manager = DiskcacheManager(cache)
 
 
@@ -60,9 +61,11 @@ app.layout = html.Div([
 
 def run_dashboard() -> None:
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
     app.run(
-        host="0.0.0.0",
-        debug=True,
+        host=os.environ.get("DASH_HOST", "0.0.0.0"),
+        port=os.environ.get("DASH_PORT", 8050),
+        debug=os.environ.get("DASH_DEBUG", "True") == "True",
         exclude_patterns=["data/*", "*.csv", "cache/*"],
     )
 
