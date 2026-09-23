@@ -65,22 +65,25 @@ layout = html.Div(dbc.Container([
         style={"marginBottom": "10px", "width": "300px"},
     ),
 
-    dag.AgGrid(
-        id="events-grid",
-        columnDefs=[
-            {"headerName": "", "checkboxSelection": True, "width": 50},
-            {"field": "date", "headerName": "Date", "width": 130, "sort": "desc"},
-            {"field": "name", "headerName": "Project", "flex": 1},
-            {"field": "path", "headerName": "Folder", "flex": 1},
-        ],
-        rowData=discover_events(settings.photos_dir).to_dict("records"),
-        dashGridOptions={
-            "rowSelection": "multiple",
-            "pagination": False,
-            # "paginationPageSize": 25,
-        },
-        columnSize="sizeToFit",
-        style={"height": "600px"},
+    html.Div(
+        dag.AgGrid(
+            id="events-grid",
+            columnDefs=[
+                {"headerName": "", "checkboxSelection": True, "width": 50},
+                {"field": "date", "headerName": "Date", "width": 130, "sort": "desc"},
+                {"field": "name", "headerName": "Project", "flex": 1},
+                {"field": "path", "headerName": "Folder", "flex": 1},
+            ],
+            rowData=discover_events(settings.photos_dir).to_dict("records"),
+            dashGridOptions={
+                "rowSelection": "multiple",
+                "pagination": False,
+                # "paginationPageSize": 25,
+            },
+            columnSize="sizeToFit",
+            style={"height": "100%", "width": "100%"},
+        ),
+        style={"resize": "both", "overflow": "auto", "height": "400px", "width": "100%"},
     ),
 
     html.Button("View events", id="view-events-btn", style={"marginTop": "10px"}),

@@ -155,28 +155,45 @@ def build_co_occurrence_table(asset_people, person_id, name_by_id):
                     counts[other] += 1
 
     rows = [
-        {"name": name_by_id.get(other_id) or other_id, "count": n}
+        {
+            "name": name_by_id.get(other_id) or "UNKNOWN",
+            "id": other_id,
+            "count": n,
+        }
         for other_id, n in counts.most_common()
     ]
-    return dag.AgGrid(
-        columnDefs=[
-            {
-                "field": "name",
-                "headerName": "Person",
-                "flex": 1,
-                "sortable": True,
+    return html.Div(
+        dag.AgGrid(
+            columnDefs=[
+                {
+                    "headerName": "",
+                    "cellRenderer": "PersonLinksRenderer",
+                    "width": 70,
+                    "sortable": False,
+                    "filter": False,
+                },
+                {
+                    "field": "name",
+                    "headerName": "Person",
+                    "flex": 1,
+                    "sortable": True,
+                },
+                {
+                    "field": "count",
+                    "headerName": "Photos together",
+                    "width": 160,
+                    "sortable": True,
+                    "sort": "desc",
+                },
+            ],
+            rowData=rows,
+            columnSize="sizeToFit",
+            dashGridOptions={
+                "context": {"immichHost": settings.immich_host},
             },
-            {
-                "field": "count",
-                "headerName": "Photos together",
-                "width": 160,
-                "sortable": True,
-                "sort": "desc",
-            },
-        ],
-        rowData=rows,
-        columnSize="sizeToFit",
-        style={"height": "400px"},
+            style={"height": "100%", "width": "100%"},
+        ),
+        style={"resize": "both", "overflow": "auto", "height": "400px", "width": "100%"},
     )
 
 
@@ -227,7 +244,7 @@ def render_detail(search, _version):
                 html.Div([
                     html.H3(name_by_id.get(pid) or pid),
                     build_co_occurrence_table(asset_people, pid, name_by_id),
-                ])
+                ], style={"margin-bottom": "5rem"})
                 for pid in ids
             ])
         ]),

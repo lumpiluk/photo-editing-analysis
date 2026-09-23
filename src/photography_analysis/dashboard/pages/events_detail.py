@@ -60,6 +60,7 @@ def build_people_table(photos, event_dates, name_by_id):
         gap = (event_dates.min() - prior["date"].max()).days if not prior.empty else None
         rows.append({
             "name": name_by_id.get(pid) or pid,
+            "id": pid,
             "n_photos": int(n),
             "days_since_last": gap,
         })
@@ -67,12 +68,22 @@ def build_people_table(photos, event_dates, name_by_id):
     return html.Div(
         dag.AgGrid(
             columnDefs=[
+                {
+                    "headerName": "",
+                    "cellRenderer": "PersonLinksRenderer",
+                    "width": 70,
+                    "sortable": False,
+                    "filter": False,
+                },
                 {"field": "name", "headerName": "Name", "flex": 1, "sortable": True},
                 {"field": "n_photos", "headerName": "Photos at event", "width": 160, "sortable": True, "sort": "desc"},
                 {"field": "days_since_last", "headerName": "Days since last event", "width": 180, "sortable": True},
             ],
             rowData=rows,
             columnSize="sizeToFit",
+            dashGridOptions={
+                "context": {"immichHost": settings.immich_host},
+            },
             style={"height": "100%", "width": "100%"},
         ),
         style={"resize": "both", "overflow": "auto", "height": "400px", "width": "100%"},

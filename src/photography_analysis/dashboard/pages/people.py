@@ -78,35 +78,46 @@ layout = html.Div(dbc.Container([
         style={"marginBottom": "10px", "width": "300px"},
     ),
 
-    dag.AgGrid(
-        id="people-grid",
-        columnDefs=[
-            {
-                "headerName": "#",
-                "valueGetter": {"function": "params.node.rowIndex + 1"},
-                "width": 50,
-                # "columnSizing": "autoSize",
-                "sortable": False,
-                "pinned": "left",
-                "flex": 0,
+    html.Div(
+        dag.AgGrid(
+            id="people-grid",
+            columnDefs=[
+                {
+                    "headerName": "#",
+                    "valueGetter": {"function": "params.node.rowIndex + 1"},
+                    "width": 50,
+                    # "columnSizing": "autoSize",
+                    "sortable": False,
+                    "pinned": "left",
+                    "flex": 0,
+                },
+                {"headerName": "", "checkboxSelection": True, "width": 50},
+                {
+                    "headerName": "",
+                    "cellRenderer": "PersonLinksRenderer",
+                    "width": 70,
+                    "sortable": False,
+                    "filter": False,
+                },
+                {"field": "name", "headerName": "Name", "flex": 1},
+                {"field": "last", "headerName": "Most recent photo", "width": 160, "sort": "desc"},
+                {"field": "num_assets", "headerName": "Photos", "width": 120},
+                {"field": "num_days", "headerName": "Days photographed", "width": 150},
+                # once thumbnails are available:
+                # {"field": "thumbnail", "headerName": "", "cellRenderer": "ImageRenderer", "width": 80},
+            ],
+            rowData=load_people().to_dict("records"),
+            dashGridOptions={
+                "context": {"immichHost": settings.immich_host},
+                "rowSelection": "multiple",
+                "suppressRowClickSelection": False,
+                "pagination": False,
+                # "paginationPageSize": 1000,
             },
-            {"headerName": "", "checkboxSelection": True, "width": 50},
-            {"field": "name", "headerName": "Name", "flex": 1},
-            {"field": "last", "headerName": "Most recent photo", "width": 160, "sort": "desc"},
-            {"field": "num_assets", "headerName": "Photos", "width": 120},
-            {"field": "num_days", "headerName": "Days photographed", "width": 150},
-            # once thumbnails are available:
-            # {"field": "thumbnail", "headerName": "", "cellRenderer": "ImageRenderer", "width": 80},
-        ],
-        rowData=load_people().to_dict("records"),
-        dashGridOptions={
-            "rowSelection": "multiple",
-            "suppressRowClickSelection": False,
-            "pagination": False,
-            # "paginationPageSize": 1000,
-        },
-        columnSize="sizeToFit",
-        style={"height": "600px"},
+            columnSize="sizeToFit",
+            style={"height": "100%", "width": "100%"},
+        ),
+        style={"resize": "both", "overflow": "auto", "height": "400px", "width": "100%"},
     ),
 
     html.Button("View people", id="view-people-btn", style={"marginTop": "10px"}),
