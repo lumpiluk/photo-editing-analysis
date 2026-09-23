@@ -1,3 +1,5 @@
+import logging
+
 import dash
 from dash import (
     callback,
@@ -54,6 +56,7 @@ app.layout = html.Div([
 
 
 def run_dashboard() -> None:
+    logging.basicConfig(level=logging.INFO)
     app.run(
         host="0.0.0.0",
         debug=True,

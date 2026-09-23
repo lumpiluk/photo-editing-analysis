@@ -1,7 +1,10 @@
+from collections import Counter
+import json
 import pathlib
 from urllib.parse import parse_qs
 
 import dash
+import dash_ag_grid as dag
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -29,6 +32,12 @@ def load_photos():
     df = pd.read_csv(path)
     df["date"] = pd.to_datetime(df["date"], format="ISO8601")
     return df
+
+
+def load_asset_people():
+    path = pathlib.Path(settings.data_cache_dir) / "asset-people.json"
+    with open(path, "r") as f:
+        return json.load(f)
 
 
 def compute_gaps(photos, person_id):
@@ -75,7 +84,7 @@ def build_heatmap_figure(photos, ranges, person_ids, name_by_id):
     return fig
 
 
-def build_ecdf_figure(photos, person_ids, name_by_id):
+def build_gap_ecdf_figure(photos, person_ids, name_by_id):
     fig = go.Figure()
     for pid in person_ids:
         gaps = compute_gaps(photos, pid)
@@ -112,7 +121,7 @@ def build_totals_table(ranges, ids, name_by_id, num_days_by_id):
         ])
         for pid in ids
     ]
-    return html.Table([
+    return dbc.Table([
         html.Thead(html.Tr([
             html.Th("Name"), html.Th("Total photos"), html.Th("Days photographed"),
         ])),
@@ -120,11 +129,63 @@ def build_totals_table(ranges, ids, name_by_id, num_days_by_id):
     ])
 
 
+def build_face_count_ecdf(asset_people, ids, name_by_id):
+    fig = go.Figure()
+    for pid in ids:
+        counts = [len(photo) - 1 for photo in asset_people if pid in photo]
+        if not counts:
+            continue
+        x = np.sort(counts)
+        y = np.arange(1, len(x) + 1) / len(x)
+        fig.add_trace(go.Scatter(x=x, y=y, mode="lines", name=name_by_id.get(pid) or pid))
+
+    fig.update_layout(
+        xaxis_title="Other known people in the same photo",
+        yaxis_title="Fraction of photos ≤ x",
+    )
+    return fig
+
+
+def build_co_occurrence_table(asset_people, person_id, name_by_id):
+    counts = Counter()
+    for photo in asset_people:
+        if person_id in photo:
+            for other in photo:
+                if other != person_id:
+                    counts[other] += 1
+
+    rows = [
+        {"name": name_by_id.get(other_id) or other_id, "count": n}
+        for other_id, n in counts.most_common()
+    ]
+    return dag.AgGrid(
+        columnDefs=[
+            {
+                "field": "name",
+                "headerName": "Person",
+                "flex": 1,
+                "sortable": True,
+            },
+            {
+                "field": "count",
+                "headerName": "Photos together",
+                "width": 160,
+                "sortable": True,
+                "sort": "desc",
+            },
+        ],
+        rowData=rows,
+        columnSize="sizeToFit",
+        style={"height": "400px"},
+    )
+
+
 @callback(
     Output("detail-content", "children"),
     Input("_pages_location", "search"),
+    Input("global-data-version", "data"),
 )
-def render_detail(search):
+def render_detail(search, _version):
     if not search:
         return html.Div("No people selected.")
 
@@ -137,6 +198,7 @@ def render_detail(search):
 
     ranges = load_ranges()
     photos = load_photos()
+    asset_people = load_asset_people()
 
     name_by_id = ranges.set_index("id")["name"].to_dict()
 
@@ -154,13 +216,19 @@ def render_detail(search):
             build_totals_table(ranges, ids, name_by_id, num_days_by_id),
 
             html.H2("Photos per month"),
-            dbc.Container(
-                dcc.Graph(figure=build_heatmap_figure(photos, ranges, ids, name_by_id)),
-            ),
+            dcc.Graph(figure=build_heatmap_figure(photos, ranges, ids, name_by_id)),
 
             html.H2("Gap between photos (ECDF)"),
-            dbc.Container(
-                dcc.Graph(figure=build_ecdf_figure(photos, ids, name_by_id)),
-            ),
+            dcc.Graph(figure=build_gap_ecdf_figure(photos, ids, name_by_id)),
+
+            html.H2("Photographed With"),
+            dcc.Graph(figure=build_face_count_ecdf(asset_people, ids, name_by_id)),
+            html.Div([
+                html.Div([
+                    html.H3(name_by_id.get(pid) or pid),
+                    build_co_occurrence_table(asset_people, pid, name_by_id),
+                ])
+                for pid in ids
+            ])
         ]),
     ])

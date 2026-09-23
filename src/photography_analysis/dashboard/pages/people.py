@@ -67,6 +67,9 @@ def build_num_assets_ecdf(people_df):
 
 layout = html.Div(dbc.Container([
     html.H1("People"),
+    html.Nav([
+        dcc.Link("Heatmap (slow)", href="/people-heatmap"),
+    ], style={"display": "flex", "gap": "1rem"}),
 
     dcc.Input(
         id="people-search",

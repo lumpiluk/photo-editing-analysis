@@ -1,5 +1,8 @@
 import datetime
+import json
+import logging
 import os
+import pathlib
 
 from dotenv import load_dotenv
 from immichpy import AsyncClient
@@ -7,6 +10,8 @@ from immichpy.client.generated.models.metadata_search_dto import (
     MetadataSearchDto,
 )
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 async def get_all_people(client, size: int = 1000, with_hidden: bool = False):
@@ -28,7 +33,12 @@ async def get_all_people(client, size: int = 1000, with_hidden: bool = False):
     return all_people
 
 
-async def get_person_date_ranges(client, people, skip_unnamed=True):
+async def get_person_date_ranges(
+        client,
+        people,
+        cache_file: pathlib.Path | None = None,
+        skip_unnamed=True,
+):
     records = []
 
     for person in people:
@@ -65,6 +75,14 @@ async def get_person_date_ranges(client, people, skip_unnamed=True):
             "num_assets": stats.assets,
         })
 
+    if cache_file:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        df_ranges = pd.DataFrame(
+            records,
+            columns=["name", "id", "first", "last", "num_assets"],
+        )
+        df_ranges.to_csv(cache_file, index=False)
+
     return records
 
 
@@ -90,7 +108,12 @@ async def get_person_photo_dates(client, person_id, size: int = 1000) -> list[da
     return dates
 
 
-async def get_all_photo_dates(client, people, skip_unnamed=True):
+async def get_all_photo_dates(
+        client,
+        people,
+        cache_file: pathlib.Path | None = None,
+        skip_unnamed=True,
+):
     """Return one row per photo: person_id, name, date."""
     records = []
 
@@ -106,12 +129,50 @@ async def get_all_photo_dates(client, people, skip_unnamed=True):
                 "date": d,
             })
 
+    if cache_file:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        df_photos = pd.DataFrame(records, columns=["person_id", "name", "date"])
+        df_photos.to_csv(cache_file, index=False)
+
+    return records
+
+
+async def fetch_all_asset_people(
+        client,
+        cache_file: pathlib.Path | None = None,
+        size=1000,
+):
+    records = []
+    page = 1
+    while page is not None:
+        response = await client.search.search_assets(
+            MetadataSearchDto(
+                order="asc",
+                size=size,
+                page=int(page),
+                with_people=True,
+            )
+        )
+        num_assets_with_people = 0
+        for asset in response.assets.items:
+            if asset.people:
+                num_assets_with_people += 1
+                records.append([str(p.id) for p in asset.people])
+        logger.info(f"{num_assets_with_people} / {len(response.assets.items)} assets have people")
+
+        next_page = response.assets.next_page
+        page = int(next_page) if next_page else None
+
+    if cache_file:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Writing cache to {cache_file}")
+        with open(cache_file, "w") as f:
+            json.dump(records, f)
+
     return records
 
 
 async def main():
-    # TODO: rewrite this for cli use or consolidate with dashboard/data_fetcher.py
-    #       Currently the only difference in data_fetcher.py is the use of settings
     # Read variables from .env and set them in os.environ:
     load_dotenv()
 
