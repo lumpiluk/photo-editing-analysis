@@ -1,4 +1,5 @@
 from collections import Counter
+from itertools import combinations
 import json
 import pathlib
 from urllib.parse import parse_qs
@@ -199,6 +200,40 @@ def build_co_occurrence_table(asset_people, person_id, name_by_id):
     )
 
 
+def build_co_occurrence_matrix(asset_people, ids, name_by_id):
+    if len(ids) < 2:
+        return None
+
+    pair_counts = Counter()
+    for photo in asset_people:
+        present = [pid for pid in ids if pid in photo]
+        for a, b in combinations(present, 2):
+            pair_counts[(a, b)] += 1
+            pair_counts[(b, a)] += 1  # symmetric, so both directions are filled
+
+    names = [name_by_id.get(pid) or pid for pid in ids]
+    n = len(ids)
+    z = [[0] * n for _ in range(n)]
+    for i, pid_i in enumerate(ids):
+        for j, pid_j in enumerate(ids):
+            if i == j:
+                continue
+            z[i][j] = pair_counts.get((pid_i, pid_j), 0)
+
+    fig = go.Figure(go.Heatmap(
+        z=z,
+        x=names,
+        y=names,
+        colorscale="Viridis",
+        hovertemplate="%{y} & %{x}<br>%{z} photos together<extra></extra>",
+    ))
+    fig.update_layout(
+        height=max(300, n * 50),
+        xaxis=dict(side="top"),
+    )
+    return fig
+
+
 @callback(
     Output("detail-content", "children"),
     Input("_pages_location", "search"),
@@ -229,6 +264,24 @@ def render_detail(search, _version):
     )
     num_days_by_id = num_days.to_dict()
 
+    matrix_fig = build_co_occurrence_matrix(asset_people, ids, name_by_id)
+    photographed_with_section = html.Div(
+        [
+            html.H2("Photographed With"),
+            dcc.Graph(figure=build_face_count_ecdf(asset_people, ids, name_by_id)),
+        ]
+        + ([dcc.Graph(figure=matrix_fig)] if matrix_fig is not None else [])
+        + [
+            html.Div([
+                html.Div([
+                    html.H3(name_by_id.get(pid) or pid),
+                    build_co_occurrence_table(asset_people, pid, name_by_id),
+                ], style={"margin-bottom": "5rem"})
+                for pid in ids
+            ]),
+        ]
+    )
+
     return html.Div([
         dbc.Container([
             html.H2("Total photos"),
@@ -240,14 +293,6 @@ def render_detail(search, _version):
             html.H2("Gap between photos (ECDF)"),
             dcc.Graph(figure=build_gap_ecdf_figure(photos, ids, name_by_id)),
 
-            html.H2("Photographed With"),
-            dcc.Graph(figure=build_face_count_ecdf(asset_people, ids, name_by_id)),
-            html.Div([
-                html.Div([
-                    html.H3(name_by_id.get(pid) or pid),
-                    build_co_occurrence_table(asset_people, pid, name_by_id),
-                ], style={"margin-bottom": "5rem"})
-                for pid in ids
-            ])
+            photographed_with_section,
         ]),
     ])
