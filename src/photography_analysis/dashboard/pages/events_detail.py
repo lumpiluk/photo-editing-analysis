@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import pathlib
 from urllib.parse import parse_qs, unquote
 
@@ -12,6 +13,13 @@ import dash_bootstrap_components as dbc
 
 from photography_analysis import data
 from photography_analysis.dashboard.config import settings
+from photography_analysis.dashboard.data_fetcher import (
+    load_photos,
+    load_ranges,
+)
+
+
+logger = logging.getLogger(__name__)
 
 dash.register_page(__name__, path="/events-detail")
 
@@ -36,19 +44,7 @@ def gather_files(event_dirs, glob_pattern):
     ]
 
 
-# --- Immich-based people table / ECDFs (unchanged from before) ---
-
-def load_ranges():
-    df = pd.read_csv(pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv")
-    df["last"] = pd.to_datetime(df["last"], format="ISO8601")
-    return df
-
-
-def load_photos():
-    df = pd.read_csv(pathlib.Path(settings.data_cache_dir) / "person-photo-dates.csv")
-    df["date"] = pd.to_datetime(df["date"], format="ISO8601").dt.normalize()
-    return df
-
+# --- Immich-based people table / ECDFs ---
 
 def build_people_table(photos, event_dates, name_by_id):
     at_event = photos[photos["date"].isin(event_dates)]
@@ -280,8 +276,9 @@ def build_all_metadata_figures(event_dirs):
     Output("events-detail-content", "children"),
     Input("events-detail-url", "search"),
     Input("global-data-version", "data"),
+    Input("demo-mode", "data"),
 )
-def render_events_detail(search, _version):
+def render_events_detail(search, _version, demo_mode):
     if not search:
         return html.Div("No events selected.")
 
@@ -294,8 +291,9 @@ def render_events_detail(search, _version):
     event_dates_raw = [pathlib.Path(p).name.split("_")[0] for p in paths]
     event_dates = pd.to_datetime(event_dates_raw).tz_localize("UTC")
 
-    ranges = load_ranges()
-    photos = load_photos()
+    ranges = load_ranges(demo_mode=demo_mode)
+    photos = load_photos(demo_mode=demo_mode)
+    photos["date"] = photos["date"].dt.normalize()
     name_by_id = ranges.set_index("id")["name"].to_dict()
 
     raw_mtimes = list(data.collect_file_stats(gather_files(event_dirs, RAW_GLOB)))

@@ -9,11 +9,12 @@ import plotly.graph_objects as go
 from dash import html, dcc, callback, Input, Output, State
 
 from photography_analysis.dashboard.config import settings
+from photography_analysis.pseudonyms import pseudonym_for_id
 
 dash.register_page(__name__, path="/people")
 
 
-def load_people():
+def load_people(demo_mode: bool):
     ranges_path = pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv"
     photos_path = pathlib.Path(settings.data_cache_dir) / "person-photo-dates.csv"
 
@@ -22,6 +23,9 @@ def load_people():
 
     df = pd.read_csv(ranges_path)
     df["last"] = pd.to_datetime(df["last"], format="ISO8601").dt.strftime("%Y-%m-%d")
+
+    if demo_mode:
+        df["name"] = df["id"].apply(pseudonym_for_id)
 
     photos = pd.read_csv(photos_path)
     photos["date"] = pd.to_datetime(photos["date"], format="ISO8601").dt.normalize()
@@ -138,10 +142,10 @@ layout = html.Div(dbc.Container([
     html.Button("View people", id="view-people-btn", style={"marginTop": "10px"}),
 
     html.H2("Distribution of days photographed"),
-    dcc.Graph(id="num-days-ecdf", figure=build_num_days_ecdf(load_people())),
+    dcc.Graph(id="num-days-ecdf"),  # , figure=build_num_days_ecdf(load_people())),
 
     html.H2("Distribution of photo counts"),
-    dcc.Graph(id="num-assets-ecdf", figure=build_num_assets_ecdf(load_people())),
+    dcc.Graph(id="num-assets-ecdf"),  # , figure=build_num_assets_ecdf(load_people())),
 ]))
 
 
@@ -163,22 +167,25 @@ def go_to_detail(n_clicks, selected_rows):
 @callback(
     Output("num-days-ecdf", "figure"),
     Input("global-data-version", "data"),
+    Input("demo-mode", "data"),
 )
-def update_num_days_ecdf(_version):
-    return build_num_days_ecdf(load_people())
+def update_num_days_ecdf(_version, demo_mode):
+    return build_num_days_ecdf(load_people(demo_mode=demo_mode))
 
 
 @callback(
     Output("num-assets-ecdf", "figure"),
     Input("global-data-version", "data"),
+    Input("demo-mode", "data"),
 )
-def update_num_assets_ecdf(_version):
-    return build_num_assets_ecdf(load_people())
+def update_num_assets_ecdf(_version, demo_mode):
+    return build_num_assets_ecdf(load_people(demo_mode=demo_mode))
 
 
 @callback(
     Output("people-grid", "rowData"),
     Input("global-data-version", "data"),
+    Input("demo-mode", "data"),
 )
-def update_people_grid(_version):
-    return load_people().to_dict("records")
+def update_people_grid(_version, demo_mode):
+    return load_people(demo_mode=demo_mode).to_dict("records")

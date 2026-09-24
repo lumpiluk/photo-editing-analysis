@@ -13,32 +13,17 @@ from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 
 from photography_analysis.dashboard.config import settings
+from photography_analysis.dashboard.data_fetcher import (
+    load_photos,
+    load_ranges,
+    load_asset_people,
+)
 
 dash.register_page(__name__, path="/people-detail")
 
 layout = html.Div([
     html.Div(id="detail-content"),
 ])
-
-
-def load_ranges():
-    path = pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv"
-    df = pd.read_csv(path)
-    df["last"] = pd.to_datetime(df["last"], format="ISO8601")
-    return df
-
-
-def load_photos():
-    path = pathlib.Path(settings.data_cache_dir) / "person-photo-dates.csv"
-    df = pd.read_csv(path)
-    df["date"] = pd.to_datetime(df["date"], format="ISO8601")
-    return df
-
-
-def load_asset_people():
-    path = pathlib.Path(settings.data_cache_dir) / "asset-people.json"
-    with open(path, "r") as f:
-        return json.load(f)
 
 
 def compute_gaps(photos, person_id):
@@ -238,8 +223,9 @@ def build_co_occurrence_matrix(asset_people, ids, name_by_id):
     Output("detail-content", "children"),
     Input("_pages_location", "search"),
     Input("global-data-version", "data"),
+    Input("demo-mode", "data"),
 )
-def render_detail(search, _version):
+def render_detail(search, _version, demo_mode):
     if not search:
         return html.Div("No people selected.")
 
@@ -250,8 +236,8 @@ def render_detail(search, _version):
     if not ids:
         return html.Div("No people selected.")
 
-    ranges = load_ranges()
-    photos = load_photos()
+    ranges = load_ranges(demo_mode=demo_mode)
+    photos = load_photos(demo_mode=demo_mode)
     asset_people = load_asset_people()
 
     name_by_id = ranges.set_index("id")["name"].to_dict()

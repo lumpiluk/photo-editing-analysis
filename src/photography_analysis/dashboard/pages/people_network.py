@@ -9,6 +9,7 @@ import pandas as pd
 from dash import html, dcc, callback, Input, Output
 
 from photography_analysis.dashboard.config import settings
+from photography_analysis.dashboard.data_fetcher import load_ranges
 
 dash.register_page(__name__, path="/people-network")
 
@@ -26,15 +27,11 @@ layout = html.Div([
 ])
 
 
-def load_ranges():
-    return pd.read_csv(pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv")
-
-
-def build_graph_elements(min_shared: int):
+def build_graph_elements(min_shared: int, demo_mode: bool):
     with open(CACHE_FILE) as f:
         asset_people = json.load(f)
 
-    ranges = load_ranges()
+    ranges = load_ranges(demo_mode=demo_mode)
     named_ids = set(ranges.loc[ranges["name"].notna() & (ranges["name"] != ""), "id"])
 
     pair_counts = Counter()
@@ -69,8 +66,9 @@ def build_graph_elements(min_shared: int):
 @callback(
     Output("network-content", "children"),
     Input("min-shared-slider", "value"),
+    Input("demo-mode", "data"),
 )
-def update_graph(min_shared):
+def update_graph(min_shared, demo_mode: bool):
     if not CACHE_FILE.exists():
         return html.Div(
             "No co-occurrence data found. Click \"Refresh Immich Data\" in the header first — "
@@ -78,7 +76,7 @@ def update_graph(min_shared):
             style={"color": "orange"},
         )
 
-    elements = build_graph_elements(min_shared)
+    elements = build_graph_elements(min_shared, demo_mode=demo_mode)
     if not elements:
         return html.Div(f"No pairs of people share at least {min_shared} photos. Try lowering the threshold.")
 

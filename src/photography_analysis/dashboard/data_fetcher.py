@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import pathlib
 
@@ -6,6 +7,7 @@ from immichpy import AsyncClient
 import pandas as pd
 
 from photography_analysis.dashboard.config import settings
+from photography_analysis.pseudonyms import pseudonym_for_id
 from photography_analysis.immich_data import (
     get_all_people,
     get_all_photo_dates,
@@ -52,5 +54,28 @@ def fetch_and_save_immich_data() -> None:
 
     asyncio.run(_run())
 
+
+def load_ranges(demo_mode: bool):
+    path = pathlib.Path(settings.data_cache_dir) / "person-date-ranges.csv"
+    df = pd.read_csv(path)
+    df["last"] = pd.to_datetime(df["last"], format="ISO8601")
+    if demo_mode:
+        df["name"] = df["id"].apply(pseudonym_for_id)
+    return df
+
+
+def load_photos(demo_mode: bool):
+    path = pathlib.Path(settings.data_cache_dir) / "person-photo-dates.csv"
+    df = pd.read_csv(path)
+    df["date"] = pd.to_datetime(df["date"], format="ISO8601")  # .dt.normalize()? from events_detail.py
+    if demo_mode:
+        df["name"] = df["person_id"].apply(pseudonym_for_id)
+    return df
+
+
+def load_asset_people():
+    path = pathlib.Path(settings.data_cache_dir) / "asset-people.json"
+    with open(path, "r") as f:
+        return json.load(f)
 
 

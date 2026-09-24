@@ -5,12 +5,15 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from photography_analysis.pseudonyms import pseudonym_for_id
+
 
 def prepare_heatmap_data(
     person_photo_dates_path: pathlib.Path,
     person_date_ranges_path: pathlib.Path,
     start_date: str | None,
     end_date: str | None,
+    demo_mode: bool,
 ):
     photos = pd.read_csv(person_photo_dates_path)
     photos["date"] = pd.to_datetime(photos["date"], format="ISO8601")
@@ -27,6 +30,10 @@ def prepare_heatmap_data(
 
     ranges = pd.read_csv(person_date_ranges_path)
     ranges["last"] = pd.to_datetime(ranges["last"], format="ISO8601")
+
+    if demo_mode:
+        ranges["name"] = ranges["id"].apply(pseudonym_for_id)
+        photos["name"] = photos["person_id"].apply(pseudonym_for_id)
 
     # --- bin into monthly counts per person ---
     photos["month"] = photos["date"].dt.to_period("M")
@@ -64,6 +71,7 @@ def plot_heatmap(
         person_date_ranges_path=person_date_ranges_path,
         start_date=start_date,
         end_date=end_date,
+        demo_mode=False,
     )
     fig, ax = plt.subplots(
         figsize=(9, len(order) * 0.05),
@@ -131,12 +139,14 @@ def plot_heatmap_plotly(
     person_date_ranges_path,
     start_date,
     end_date,
+    demo_mode: bool,
 ):
     log_vals, name_by_id, order, pivot = prepare_heatmap_data(
         person_photo_dates_path=person_photo_dates_path,
         person_date_ranges_path=person_date_ranges_path,
         start_date=start_date,
         end_date=end_date,
+        demo_mode=demo_mode,
     )
 
     labels = [name_by_id.get(pid) or pid for pid in order]

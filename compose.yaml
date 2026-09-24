@@ -9,17 +9,12 @@ services:
     restart: "no"
 
   web:
-    # Build the image from the Dockerfile in the current directory
     build: .
-
     depends_on:
       init-cache:
         condition: service_completed_successfully
-
-    # Host the FastAPI application on port 8000
     ports:
       - "8050:8050"
-
     env_file:
       - .env
     environment:
@@ -34,19 +29,16 @@ services:
       # override .env:
       - photos_dir=/pictures
       - data_cache_dir=/cache
-
     volumes:
       - type: bind
         source: /mnt/nfs/pictures
         target: /pictures
         read_only: false  # must be writable for folder-level metadata cache
       - dash-cache:/cache  # used for disk cache if redis is not set up
-
     # Run as root during development so the environment is mutable
     # Alternatively, you could set `UV_PROJECT_ENVIRONMENT` to a path owned by the non-root user
     # user: root
     user: 1000:1000
-
     develop:
       # Create a `watch` configuration to update the app
       # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
@@ -59,7 +51,6 @@ services:
           # different platform in the container
           ignore:
             - .venv/
-
         # Rebuild the image if dependencies change by checking uv.lock
         - action: rebuild
           path: ./uv.lock

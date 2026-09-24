@@ -27,8 +27,9 @@ layout = html.Div([
     Input("date-range-picker", "start_date"),
     Input("date-range-picker", "end_date"),
     Input("global-data-version", "data"),
+    Input("demo-mode", "data"),
 )
-def update_heatmap(start_date: str, end_date: str, _version):
+def update_heatmap(start_date: str, end_date: str, _version, demo_mode: bool):
     fig = plot_heatmap_plotly(
         person_photo_dates_path=(
             pathlib.Path(settings.data_cache_dir)
@@ -38,8 +39,8 @@ def update_heatmap(start_date: str, end_date: str, _version):
             pathlib.Path(settings.data_cache_dir)
             / "person-date-ranges.csv"
         ),
-        # start_date=start_date,
-        # end_date=end_date,
-        start_date=start_date, end_date=end_date,
+        start_date=start_date,
+        end_date=end_date,
+        demo_mode=demo_mode,
     )
     return fig

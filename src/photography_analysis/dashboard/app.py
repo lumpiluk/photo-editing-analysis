@@ -11,6 +11,7 @@ from dash import (
     html,
     Input,
     Output,
+    State,
 )
 import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
@@ -47,12 +48,19 @@ app = Dash(
 
 app.layout = html.Div([
     dcc.Store(id="global-data-version"),
+    dcc.Store(id="demo-mode", storage_type="local", data=False),
     html.Header([
         html.Nav([
             dcc.Link("People", href="/people"),
             dcc.Link("Events", href="/events"),
         ], style={"display": "flex", "gap": "1rem"}),
         html.Button("Refresh Immich data", id="global-refresh-btn"),
+        dcc.Checklist(
+            id="demo-mode-toggle",
+            options=[{"label": " Demo mode", "value": "on"}],
+            value=[],
+            style={"marginLeft": "1rem"},
+        ),
         html.Span(id="global-refresh-status", style={"marginLeft": "1rem"}),
     ], style={"padding": "10px", "borderBottom": "1px solid #ccc"}),
     dash.page_container,
@@ -81,3 +89,22 @@ def run_dashboard() -> None:
 def refresh_immich_data(n_clicks):
     fetch_and_save_immich_data()
     return "Immich data refreshed.", n_clicks
+
+
+@callback(
+    Output("demo-mode", "data"),
+    Output("demo-mode-toggle", "value"),
+    Input("demo-mode-toggle", "value"),
+    State("demo-mode", "data"),
+)
+def sync_demo_mode(toggle_value, stored_value):
+    triggered_id = dash.callback_context.triggered_id
+
+    if triggered_id is None:
+        # initial page load: reflect whatever was already in localStorage
+        is_on = bool(stored_value)
+    else:
+        # user actually clicked the checkbox
+        is_on = "on" in toggle_value
+
+    return is_on, (["on"] if is_on else [])
