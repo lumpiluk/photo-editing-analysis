@@ -121,7 +121,7 @@ layout = html.Div(dbc.Container([
                 # once thumbnails are available:
                 # {"field": "thumbnail", "headerName": "", "cellRenderer": "ImageRenderer", "width": 80},
             ],
-            rowData=load_people().to_dict("records"),
+            rowData=[],  # start empty; filled in by callback below
             dashGridOptions={
                 "context": {"immichHost": settings.immich_host},
                 "rowSelection": "multiple",
@@ -176,5 +176,9 @@ def update_num_assets_ecdf(_version):
     return build_num_assets_ecdf(load_people())
 
 
-# TODO
-# - refresh peoples names (and thumbnails)
+@callback(
+    Output("people-grid", "rowData"),
+    Input("global-data-version", "data"),
+)
+def update_people_grid(_version):
+    return load_people().to_dict("records")
