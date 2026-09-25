@@ -14,7 +14,13 @@ dagcomponentfuncs.PersonLinksRenderer = function (props) {
         ),
         React.createElement(
             "a",
-            { href: `${immichHost}/people/${uid}`, target: "_blank", title: "Open in Immich" },
+            {
+                href: Object.hasOwn(props.data, 'ids') ?
+                    `${immichHost}/search?query={"personIds"%3A[${props.data.ids.map((it) => `"${it}"`).join("%2C")}]}`
+                    : `${immichHost}/people/${uid}`,
+                target: "_blank",
+                title: "Open in Immich"
+            },
             "🖼️"  // stand-in for the Immich icon
         )
     );

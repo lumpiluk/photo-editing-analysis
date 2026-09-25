@@ -144,6 +144,7 @@ def build_co_occurrence_table(asset_people, person_id, name_by_id):
         {
             "name": name_by_id.get(other_id) or "UNKNOWN",
             "id": other_id,
+            "ids": [person_id, other_id],
             "count": n,
         }
         for other_id, n in counts.most_common()
