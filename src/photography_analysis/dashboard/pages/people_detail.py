@@ -118,7 +118,10 @@ def build_totals_table(ranges, ids, name_by_id, num_days_by_id):
 def build_face_count_ecdf(asset_people, ids, name_by_id):
     fig = go.Figure()
     for pid in ids:
-        counts = [len(photo) - 1 for photo in asset_people if pid in photo]
+        counts = [
+            len(photo["people"]) - 1
+            for photo in asset_people if pid in photo["people"]
+        ]
         if not counts:
             continue
         x = np.sort(counts)
@@ -135,8 +138,8 @@ def build_face_count_ecdf(asset_people, ids, name_by_id):
 def build_co_occurrence_table(asset_people, person_id, name_by_id):
     counts = Counter()
     for photo in asset_people:
-        if person_id in photo:
-            for other in photo:
+        if person_id in photo["people"]:
+            for other in photo["people"]:
                 if other != person_id:
                     counts[other] += 1
 
@@ -192,7 +195,7 @@ def build_co_occurrence_matrix(asset_people, ids, name_by_id):
 
     pair_counts = Counter()
     for photo in asset_people:
-        present = [pid for pid in ids if pid in photo]
+        present = [pid for pid in ids if pid in photo["people"]]
         for a, b in combinations(present, 2):
             pair_counts[(a, b)] += 1
             pair_counts[(b, a)] += 1  # symmetric, so both directions are filled

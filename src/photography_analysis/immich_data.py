@@ -157,7 +157,10 @@ async def fetch_all_asset_people(
         for asset in response.assets.items:
             if asset.people:
                 num_assets_with_people += 1
-                records.append([str(p.id) for p in asset.people])
+                records.append({
+                    "date": str(asset.local_date_time),
+                    "people": [str(p.id) for p in asset.people]
+                })
         logger.info(f"Page {page}: {num_assets_with_people} / {len(response.assets.items)} assets have people")
 
         next_page = response.assets.next_page

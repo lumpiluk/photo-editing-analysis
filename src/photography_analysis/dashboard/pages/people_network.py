@@ -36,8 +36,8 @@ def build_graph_elements(min_shared: int, demo_mode: bool):
 
     pair_counts = Counter()
     node_photo_counts = Counter()
-    for people_in_photo in asset_people:
-        named_people = [pid for pid in people_in_photo if pid in named_ids]
+    for photo in asset_people:
+        named_people = [pid for pid in photo["people"] if pid in named_ids]
         for pid in named_people:
             node_photo_counts[pid] += 1
         for a, b in combinations(sorted(set(named_people)), 2):

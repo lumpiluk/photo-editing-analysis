@@ -14,8 +14,12 @@ import dash_bootstrap_components as dbc
 from photography_analysis import data
 from photography_analysis.dashboard.config import settings
 from photography_analysis.dashboard.data_fetcher import (
+    load_asset_people,
     load_photos,
     load_ranges,
+)
+from photography_analysis.plots.people_per_photo import (
+    build_people_per_photo_ecdf_plotly,
 )
 
 
@@ -111,6 +115,17 @@ def build_gap_ecdf(photos, event_dates):
     fig = go.Figure(go.Scatter(x=x, y=y, mode="lines"))
     fig.update_layout(xaxis_title="Days since person's last event", yaxis_title="Fraction of people ≤ x")
     return fig
+
+
+def build_people_per_photo_ecdf_for_events(asset_people, event_dates):
+    event_dates = set(pd.to_datetime(event_dates))
+    filtered = [
+        r for r
+        in asset_people
+        if pd.Timestamp(r["date"]).normalize() in event_dates
+    ]
+    # logger.info(f"{len(filtered)=}, {asset_people[-1]["date"]}, {event_dates=}")
+    return build_people_per_photo_ecdf_plotly(filtered)
 
 
 # --- raw-vs-edited: mtimes based, fast, no caching needed ---
@@ -291,6 +306,7 @@ def render_events_detail(search, _version, demo_mode):
     event_dates_raw = [pathlib.Path(p).name.split("_")[0] for p in paths]
     event_dates = pd.to_datetime(event_dates_raw).tz_localize("UTC")
 
+    asset_people = load_asset_people()
     ranges = load_ranges(demo_mode=demo_mode)
     photos = load_photos(demo_mode=demo_mode)
     photos["date"] = photos["date"].dt.normalize()
@@ -305,11 +321,18 @@ def render_events_detail(search, _version, demo_mode):
         html.H1("Event details"),
         html.P(f"Selected events: {', '.join(pathlib.Path(p).name for p in paths)}"),
 
-        html.H2("People at this event"),
+        html.H2("Known people at this event"),
         build_people_table(photos, event_dates, name_by_id),
 
         html.H2("Photos per person (ECDF)"),
         dcc.Graph(figure=build_people_count_ecdf(photos, event_dates)),
+
+        html.H2("Known people per photo (this event)"),
+        dcc.Graph(
+            figure=build_people_per_photo_ecdf_for_events(
+                asset_people, event_dates
+            ),
+        ),
 
         html.H2("Days since last event, per person (ECDF)"),
         dcc.Graph(figure=build_gap_ecdf(photos, event_dates)),
