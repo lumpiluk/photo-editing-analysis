@@ -64,6 +64,11 @@ layout = html.Div(dbc.Container([
         placeholder="Search events...",
         style={"marginBottom": "10px", "width": "300px"},
     ),
+    html.Button(
+        "Refresh folder list",
+        id="events-refresh-btn",
+        style={"marginBottom": "10px", "marginLeft": "10px"},
+    ),
 
     html.Div(
         dag.AgGrid(
@@ -74,7 +79,7 @@ layout = html.Div(dbc.Container([
                 {"field": "name", "headerName": "Project", "flex": 1},
                 {"field": "path", "headerName": "Folder", "flex": 1},
             ],
-            rowData=discover_events(settings.photos_dir).to_dict("records"),
+            rowData=[],  # filled in update_events_grid
             dashGridOptions={
                 "rowSelection": "multiple",
                 "pagination": False,
@@ -88,6 +93,14 @@ layout = html.Div(dbc.Container([
 
     html.Button("View events", id="view-events-btn", style={"marginTop": "10px"}),
 ]))
+
+
+@callback(
+    Output("events-grid", "rowData"),
+    Input("events-refresh-btn", "n_clicks"),
+)
+def update_events_grid(n_clicks):
+    return discover_events(settings.photos_dir).to_dict("records")
 
 
 @callback(
