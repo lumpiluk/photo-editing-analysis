@@ -7,8 +7,12 @@ import dash_ag_grid as dag
 import pandas as pd
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
+import plotly.graph_objects as go
 
 from photography_analysis.dashboard.config import settings
+from photography_analysis.dashboard.data_fetcher import (
+    load_asset_people,
+)
 
 dash.register_page(__name__, path="/events")
 
@@ -92,6 +96,15 @@ layout = html.Div(dbc.Container([
     ),
 
     html.Button("View events", id="view-events-btn", style={"marginTop": "10px"}),
+
+    html.H2("Hour of day"),
+    dcc.Graph(id="hour-of-day-histogram"),
+
+    html.H2("Day of week"),
+    dcc.Graph(id="day-of-week-histogram"),
+
+    html.H2("Month of year"),
+    dcc.Graph(id="month-of-year-histogram"),
 ]))
 
 
@@ -127,3 +140,60 @@ def go_to_project_detail(n_clicks, selected_rows):
 
     paths = ",".join(quote(row["path"], safe="") for row in selected_rows)
     return "/events-detail", f"?paths={paths}"
+
+
+def build_seasonality_histogram(dates: pd.Series, extractor, xaxis_title, xbins, tick_labels=None):
+    values = extractor(dates)
+    fig = go.Figure(go.Histogram(x=values, xbins=xbins))
+    fig.update_layout(xaxis_title=xaxis_title, yaxis_title="Number of photos")
+    if tick_labels:
+        fig.update_xaxes(tickmode="array", tickvals=list(range(len(tick_labels))), ticktext=tick_labels)
+    return fig
+
+
+def build_hour_of_day_histogram(dates: pd.Series):
+    fig = build_seasonality_histogram(
+        dates, extractor=lambda d: d.dt.hour,
+        xaxis_title="Hour of day (24h)",
+        xbins=dict(start=-0.5, end=23.5, size=1),
+    )
+    fig.update_xaxes(tick0=0, dtick=2)
+    return fig
+
+
+def build_day_of_week_histogram(dates: pd.Series):
+    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    return build_seasonality_histogram(
+        dates, extractor=lambda d: d.dt.dayofweek,
+        xaxis_title="Day of week",
+        xbins=dict(start=-0.5, end=6.5, size=1),
+        tick_labels=day_names,
+    )
+
+
+def build_month_of_year_histogram(dates: pd.Series):
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return build_seasonality_histogram(
+        dates, extractor=lambda d: d.dt.month - 1,
+        xaxis_title="Month",
+        xbins=dict(start=-0.5, end=11.5, size=1),
+        tick_labels=month_names,
+    )
+
+
+@callback(
+    Output("hour-of-day-histogram", "figure"),
+    Output("day-of-week-histogram", "figure"),
+    Output("month-of-year-histogram", "figure"),
+    Input("global-data-version", "data"),
+)
+def update_seasonality_histograms(_version):
+    asset_people = load_asset_people()
+    dates = pd.to_datetime(
+        pd.Series([r["date"] for r in asset_people]), format="ISO8601"
+    )
+    return (
+        build_hour_of_day_histogram(dates),
+        build_day_of_week_histogram(dates),
+        build_month_of_year_histogram(dates),
+    )

@@ -83,6 +83,7 @@ def build_num_assets_ecdf(people_df):
 
 
 def build_retention_curve(photos):
+    # TODO: explain what "still present" means (+ make it configurable?)
     photos = photos.copy()
     photos["year"] = photos["date"].dt.year
 
@@ -106,7 +107,11 @@ def build_retention_curve(photos):
         retention.append({"years_since_first": k, "fraction_retained": still_present / len(eligible)})
 
     df = pd.DataFrame(retention)
-    fig = go.Figure(go.Scatter(x=df["years_since_first"], y=df["fraction_retained"], mode="lines+markers"))
+    fig = go.Figure(go.Scatter(
+        x=df["years_since_first"],
+        y=df["fraction_retained"],
+        mode="markers"),
+    )
     fig.update_layout(
         xaxis_title="Years since first photographed",
         yaxis_title="Fraction of that cohort still photographed",

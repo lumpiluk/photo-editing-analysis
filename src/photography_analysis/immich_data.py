@@ -114,7 +114,7 @@ async def get_all_photo_dates(
         cache_file: pathlib.Path | None = None,
         skip_unnamed=True,
 ):
-    """Return one row per photo: person_id, name, date."""
+    """Return one row per person and photo: person_id, name, date."""
     records = []
 
     for person in people:
@@ -142,6 +142,7 @@ async def fetch_all_asset_people(
         cache_file: pathlib.Path | None = None,
         size=1000,
 ):
+    """One item per asset."""
     records = []
     page = 1
     while page is not None:
@@ -157,10 +158,11 @@ async def fetch_all_asset_people(
         for asset in response.assets.items:
             if asset.people:
                 num_assets_with_people += 1
-                records.append({
-                    "date": str(asset.local_date_time),
-                    "people": [str(p.id) for p in asset.people]
-                })
+            records.append({
+                "date": str(asset.local_date_time),
+                "people": [str(p.id) for p in asset.people]
+                    if asset.people else [],
+            })
         logger.info(f"Page {page}: {num_assets_with_people} / {len(response.assets.items)} assets have people")
 
         next_page = response.assets.next_page
