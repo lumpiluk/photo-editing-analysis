@@ -30,6 +30,12 @@ dash.register_page(__name__, path="/events-detail")
 RAW_GLOB = "*.CR3"
 EDITED_GLOB = "converted*/*.jpg"
 
+# standard shutter-speed stops, in seconds
+SHUTTER_STOPS = [
+    1/8000, 1/4000, 1/2000, 1/1000, 1/500, 1/250, 1/125, 1/60, 1/30,
+    1/15, 1/8, 1/4, 1/2, 1, 2, 4, 8, 15, 30,
+]
+
 layout = html.Div(dbc.Container([
     dcc.Location(id="events-detail-url"),
     html.Div(id="events-detail-content"),
@@ -46,6 +52,18 @@ def gather_files(event_dirs, glob_pattern):
         for d in event_dirs
         for f in d.glob(glob_pattern, case_sensitive=False)
     ]
+
+
+def ecdf_trace(values, name):
+    x = np.sort(np.asarray(values, dtype=float))
+    y = np.arange(1, len(x) + 1) / len(x)
+    # start at (x_min, 0) so a single value still draws a vertical step
+    x_plot = np.concatenate([[x[0]], x])
+    y_plot = np.concatenate([[0.0], y])
+    return go.Scatter(
+        x=x_plot, y=y_plot, mode="lines", name=name,
+        line=dict(shape="hv"), marker=dict(size=4),
+    )
 
 
 # --- Immich-based people table / ECDFs ---
@@ -96,7 +114,15 @@ def build_people_count_ecdf(photos, event_dates):
         return go.Figure()
     x = np.sort(counts)
     y = np.arange(1, len(x) + 1) / len(x)
-    fig = go.Figure(go.Scatter(x=x, y=y, mode="lines"))
+    # start at (x_min, 0) so a single value still draws a vertical step
+    x_plot = np.concatenate([[x[0]], x])
+    y_plot = np.concatenate([[0.0], y])
+    fig = go.Figure(go.Scatter(
+        x=x_plot,
+        y=y_plot,
+        mode="lines",
+        line={"shape": "hv"},
+    ))
     fig.update_layout(xaxis_title="Photos per person at this event", yaxis_title="Fraction of people ≤ x")
     return fig
 
@@ -112,7 +138,15 @@ def build_gap_ecdf(photos, event_dates):
         return go.Figure()
     x = np.sort(gaps)
     y = np.arange(1, len(x) + 1) / len(x)
-    fig = go.Figure(go.Scatter(x=x, y=y, mode="lines"))
+    # start at (x_min, 0) so a single value still draws a vertical step
+    x_plot = np.concatenate([[x[0]], x])
+    y_plot = np.concatenate([[0.0], y])
+    fig = go.Figure(go.Scatter(
+        x=x,
+        y=y,
+        mode="lines",
+        line={"shape": "hv"},
+    ))
     fig.update_layout(xaxis_title="Days since person's last event", yaxis_title="Fraction of people ≤ x")
     return fig
 
@@ -130,12 +164,6 @@ def build_people_per_photo_ecdf_for_events(asset_people, event_dates):
 
 # --- raw-vs-edited: mtimes based, fast, no caching needed ---
 
-def ecdf_trace(values, name):
-    x = np.sort(values)
-    y = np.arange(1, len(x) + 1) / len(x)
-    return go.Scatter(x=x, y=y, mode="lines", name=name)
-
-
 def build_delta_ecdf(raw_mtimes, edited_mtimes):
     fig = go.Figure()
     for mtimes, label in [(raw_mtimes, "Raw"), (edited_mtimes, "Edited")]:
@@ -152,8 +180,9 @@ def build_delta_ecdf(raw_mtimes, edited_mtimes):
     return fig
 
 
-def build_sessions_ecdf(raw_mtimes, edited_mtimes):
-    fig = go.Figure()
+def compute_sessions(raw_mtimes, edited_mtimes):
+    """Return {label: session durations in minutes}."""
+    sessions = {}
     for mtimes, label in [(raw_mtimes, "Raw"), (edited_mtimes, "Edited")]:
         if len(mtimes) < 2:
             continue
@@ -161,14 +190,34 @@ def build_sessions_ecdf(raw_mtimes, edited_mtimes):
             timestamps_sec=sorted(mtimes),
             min_break_between_sessions_sec=60 * 30,
         ))
-        if not durations:
-            continue
-        fig.add_trace(ecdf_trace(np.array(durations) / 60, label))
+        if durations:
+            sessions[label] = np.array(durations) / 60
+    return sessions
+
+
+def build_sessions_ecdf(sessions):
+    fig = go.Figure()
+    for label, minutes in sessions.items():
+        fig.add_trace(ecdf_trace(minutes, label))
     fig.update_layout(
         xaxis_title="Session duration (minutes)",
         yaxis_title="Fraction of sessions ≤ x",
     )
     return fig
+
+
+def build_sessions_summary(sessions):
+    return html.Div([
+        html.P(f"{label}: {len(minutes)} sessions, "
+               f"total duration {minutes.sum() / 60:.2f} hours")
+        for label, minutes in sessions.items()
+    ])
+
+
+def format_exposure(x: float) -> str:
+    if x >= 1:
+        return f"{x:g}s"
+    return f"1/{round(1 / x)}"
 
 
 # --- shared metadata fetch: one exiftool call per raw/edited, reused by all plots below ---
@@ -217,19 +266,40 @@ def fetch_all_metadata(event_dirs):
     return raw_meta, edited_meta
 
 
-def build_metadata_ecdf(raw_meta, edited_meta, tag, xlabel, log_scale=False,
-                         tickvals=None, ticktext=None):
+def build_metadata_ecdf(
+        raw_meta,
+        edited_meta,
+        tag,
+        xlabel,
+        log_scale=False,
+        tickvals=None,
+        ticktext=None,
+        value_formatter=None,
+):
     fig = go.Figure()
     for meta, label in [(raw_meta, "Raw"), (edited_meta, "Edited")]:
         values = [m[tag] for m in meta if tag in m]
         if values:
-            fig.add_trace(ecdf_trace(values, label))
+            trace = ecdf_trace(values, label)
+        if value_formatter:
+            trace.customdata = [value_formatter(v) for v in trace.x]
+            trace.hovertemplate = (
+                "%{customdata}<br>%{y:.0%} of photos ≤ this<extra>%{fullData.name}</extra>"
+            )
+        fig.add_trace(trace)
 
-    fig.update_layout(xaxis_title=xlabel, yaxis_title="Fraction of photos ≤ x")
+    fig.update_layout(
+        xaxis_title=xlabel,
+        yaxis_title="Fraction of photos ≤ x",
+    )
     if log_scale:
         fig.update_xaxes(type="log")
     if tickvals:
-        fig.update_xaxes(tickmode="array", tickvals=tickvals, ticktext=ticktext or [str(t) for t in tickvals])
+        fig.update_xaxes(
+            tickmode="array",
+            tickvals=tickvals,
+            ticktext=ticktext or [str(t) for t in tickvals],
+        )
     return fig
 
 
@@ -268,7 +338,11 @@ def build_all_metadata_figures(event_dirs):
             raw_meta, edited_meta, "EXIF:FocalLength", "Focal length (mm)",
         ),
         "exposure_times": build_metadata_ecdf(
-            raw_meta, edited_meta, "EXIF:ExposureTime", "Exposure time (s)", log_scale=True,
+            raw_meta, edited_meta, "EXIF:ExposureTime", "Exposure time",
+            log_scale=True,
+            tickvals=SHUTTER_STOPS,
+            ticktext=[format_exposure(s) for s in SHUTTER_STOPS],
+            value_formatter=format_exposure,
         ),
         "apertures": build_metadata_ecdf(
             raw_meta, edited_meta, "EXIF:FNumber", "Aperture", log_scale=True,
@@ -314,6 +388,7 @@ def render_events_detail(search, _version, demo_mode):
 
     raw_mtimes = list(data.collect_file_stats(gather_files(event_dirs, RAW_GLOB)))
     edited_mtimes = list(data.collect_file_stats(gather_files(event_dirs, EDITED_GLOB)))
+    sessions = compute_sessions(raw_mtimes, edited_mtimes)
 
     cache_ready = metadata_cache_exists(event_dirs)
 
@@ -341,7 +416,8 @@ def render_events_detail(search, _version, demo_mode):
         dcc.Graph(figure=build_delta_ecdf(raw_mtimes, edited_mtimes)),
 
         html.H2("Session durations: raw vs. edited"),
-        dcc.Graph(figure=build_sessions_ecdf(raw_mtimes, edited_mtimes)),
+        dcc.Graph(figure=build_sessions_ecdf(sessions)),
+        build_sessions_summary(sessions),
 
         html.P(
             "Metadata cache not found — reading EXIF data may take a few "

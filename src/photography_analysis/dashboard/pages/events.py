@@ -24,7 +24,7 @@ def _build_record(project_dir: pathlib.Path, photos_dir: pathlib.Path, match: re
     date_str, title = match.group(1), match.group(2)
     return {
         "path": project_dir.relative_to(photos_dir).as_posix(),
-        "name": title.replace("-", " "),
+        "name": title,
         "date": date_str,
     }
 
@@ -80,7 +80,6 @@ layout = html.Div(dbc.Container([
             columnDefs=[
                 {"headerName": "", "checkboxSelection": True, "width": 50},
                 {"field": "date", "headerName": "Date", "width": 130, "sort": "desc"},
-                {"field": "name", "headerName": "Project", "flex": 1},
                 {"field": "path", "headerName": "Folder", "flex": 1},
             ],
             rowData=[],  # filled in update_events_grid

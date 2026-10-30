@@ -18,6 +18,9 @@ from photography_analysis.dashboard.data_fetcher import (
     load_ranges,
     load_asset_people,
 )
+from photography_analysis.plots.people_per_photo import (
+    build_people_per_photo_ecdf_plotly,
+)
 
 dash.register_page(__name__, path="/people-detail")
 
@@ -78,8 +81,15 @@ def build_gap_ecdf_figure(photos, person_ids, name_by_id):
             continue
         x = np.sort(gaps)
         y = np.arange(1, len(x) + 1) / len(x)
+        # start at (x_min, 0) so a single value still draws a vertical step
+        x_plot = np.concatenate([[x[0]], x])
+        y_plot = np.concatenate([[0.0], y])
         fig.add_trace(go.Scatter(
-            x=x, y=y, mode="lines", name=name_by_id.get(pid) or pid,
+            x=x_plot,
+            y=y_plot,
+            mode="lines",
+            line={"shape": "hv"},
+            name=name_by_id.get(pid) or pid,
         ))
 
     fig.update_layout(
@@ -126,7 +136,16 @@ def build_face_count_ecdf(asset_people, ids, name_by_id):
             continue
         x = np.sort(counts)
         y = np.arange(1, len(x) + 1) / len(x)
-        fig.add_trace(go.Scatter(x=x, y=y, mode="lines", name=name_by_id.get(pid) or pid))
+        # start at (x_min, 0) so a single value still draws a vertical step
+        x_plot = np.concatenate([[x[0]], x])
+        y_plot = np.concatenate([[0.0], y])
+        fig.add_trace(go.Scatter(
+            x=x_plot,
+            y=y_plot,
+            mode="lines",
+            line={"shape": "hv"},
+            name=name_by_id.get(pid) or pid),
+        )
 
     fig.update_layout(
         xaxis_title="Other known people in the same photo",
